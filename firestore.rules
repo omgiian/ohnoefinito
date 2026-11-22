@@ -15,6 +15,13 @@ service cloud.firestore {
       return d.get(key, null) == null || (d.get(key, null) is string && d.get(key, '').size() <= max);
     }
 
+    // foto del prodotto: solo dai database Open Food/Beauty/Products Facts
+    function validImg(d) {
+      return d.get('img', null) == null
+        || (d.get('img', '') is string && d.get('img', '').size() <= 300
+            && d.get('img', '').matches('^https://images[.]open(food|beauty|products)facts[.]org/.*'));
+    }
+
     function validItem() {
       let d = request.resource.data;
       return d.keys().hasOnly(['name', 'cat', 'note', 'status', 'byUid', 'byName', 'at', 'boughtUid', 'boughtName', 'boughtAt', 'pantryId'])
@@ -28,19 +35,21 @@ service cloud.firestore {
 
     function validPantry() {
       let d = request.resource.data;
-      return d.keys().hasOnly(['name', 'zone', 'qty', 'expiry', 'note', 'barcode', 'byUid', 'byName', 'at', 'updatedAt'])
+      return d.keys().hasOnly(['name', 'zone', 'qty', 'expiry', 'note', 'barcode', 'img', 'byUid', 'byName', 'at', 'updatedAt'])
         && d.name is string && d.name.size() > 0 && d.name.size() <= 80
         && d.zone in ['frigo', 'freezer', 'credenza', 'pulizia', 'bagno']
         && d.qty is int && d.qty >= 0 && d.qty <= 999
         && shortText(d, 'expiry', 10)
         && shortText(d, 'note', 120)
         && shortText(d, 'barcode', 14)
+        && validImg(d)
         && shortText(d, 'byName', 30);
     }
 
     function validBarcode() {
       let d = request.resource.data;
-      return d.keys().hasOnly(['name', 'zone', 'cat', 'note', 'at'])
+      return d.keys().hasOnly(['name', 'zone', 'cat', 'note', 'img', 'at'])
+        && validImg(d)
         && d.name is string && d.name.size() > 0 && d.name.size() <= 80
         && shortText(d, 'zone', 20)
         && shortText(d, 'cat', 20)

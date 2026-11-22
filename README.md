@@ -24,7 +24,7 @@ Funziona anche senza rete: le modifiche si sincronizzano quando la connessione t
 
 ## Configurazione
 
-1. **Firestore → Regole**: incolla il contenuto di `firestore.rules` e premi *Pubblica*. Va rifatto ogni volta che il file cambia (l'ultima volta: scontrini).
+1. **Firestore → Regole**: incolla il contenuto di `firestore.rules` e premi *Pubblica*. Va rifatto ogni volta che il file cambia (l'ultima volta: foto dei prodotti).
 2. **Authentication → Metodo di accesso**: *Anonimo* attivo.
 3. **Authentication → Impostazioni → Domini autorizzati**: `omgiian.github.io`.
 4. **GitHub → Settings → Pages**: *Deploy from a branch*, cartella `/ (root)`.

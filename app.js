@@ -67,6 +67,16 @@ const I = {
   plus: `<svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M10 4v12M4 10h12"/></svg>`,
   minus: `<svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M4 10h12"/></svg>`,
   cart: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 7h14l-1.4 9.1a2 2 0 0 1-2 1.7H8.4a2 2 0 0 1-2-1.7L5 7z"/><path d="M9 7a3 3 0 0 1 6 0"/></svg>`,
+  chevL: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M15 5l-7 7 7 7"/></svg>`,
+  chevD: `<svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>`,
+  basketSm: `<svg viewBox="0 0 24 24" fill="currentColor"><path d="M2.5 9.5h19l-2 9.6a2.2 2.2 0 0 1-2.2 1.8H6.7a2.2 2.2 0 0 1-2.2-1.8z"/><path d="M7.5 9.5 12 3.8l4.5 5.7" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>`,
+  box: `<svg viewBox="0 0 24 24" fill="currentColor"><path d="M3 7.5 12 3l9 4.5-9 4.5z"/><path d="M3 9.2l8.2 4.1v7.7L3 16.9zM21 9.2l-8.2 4.1v7.7l8.2-4.1z"/></svg>`,
+  clock: `<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9.5" fill="currentColor"/><path d="M12 7v5.3l3.4 2" fill="none" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>`,
+  alert: `<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9.5" fill="currentColor"/><path d="M12 7v6.2" stroke="#fff" stroke-width="2.4" stroke-linecap="round"/><circle cx="12" cy="16.6" r="1.4" fill="#fff"/></svg>`,
+  people: `<svg viewBox="0 0 24 24" fill="currentColor"><circle cx="9" cy="8" r="3.6"/><path d="M2.5 19.5c.6-3.6 3.2-5.6 6.5-5.6s5.9 2 6.5 5.6z"/><circle cx="17" cy="9" r="2.8"/><path d="M16.4 14.1c2.9.1 4.7 1.8 5.2 4.9h-4.3c-.2-1.9-.7-3.5-.9-4.9z"/></svg>`,
+  tabBasket: `<svg viewBox="0 0 32 32" fill="currentColor"><path d="M3 12.5h26l-2.6 12.8A3 3 0 0 1 23.5 28h-15a3 3 0 0 1-2.9-2.7z"/><path d="M9.5 12.5 16 4.5l6.5 8" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/><path d="M11 16.5v7M16 16.5v7M21 16.5v7" stroke="#fff" stroke-width="2.2" stroke-linecap="round"/></svg>`,
+  tabPantry: `<svg viewBox="0 0 32 32" fill="currentColor"><rect x="5" y="3" width="22" height="26" rx="3.5"/><path d="M5 12.5h22M5 21h22" stroke="#fff" stroke-width="2.2"/><path d="M10 7.8h4M10 16.8h3M10 25.2h3.5" stroke="#fff" stroke-width="2.2" stroke-linecap="round"/></svg>`,
+  tabScan: `<svg viewBox="0 0 32 32" fill="currentColor"><rect x="3.5" y="5.5" width="25" height="21" rx="4"/><path d="M9 10.5v11M12.5 10.5v11M16.5 10.5v11M19.5 10.5v11M23 10.5v11" stroke="#fff" stroke-width="2" stroke-linecap="round"/></svg>`,
   receipt: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 3.5h12v17l-2-1.3-2 1.3-2-1.3-2 1.3-2-1.3-2 1.3z"/><path d="M9 8h6M9 11.5h6M9 15h3.5"/></svg>`,
   shelf: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="3.5" width="16" height="17" rx="2.5"/><path d="M4 10h16M4 15.5h16"/><path d="M8 6.8h3M8 12.7h2"/></svg>`,
 };
@@ -85,6 +95,7 @@ const state = {
   tab: store.get("onf-section") === "dispensa" ? "dispensa" : "spesa",
   list: store.get("onf-tab") === "mio" ? "mio" : "casa",
   filter: "all", zone: "all", search: "", status: "out",
+  pview: "zone", psort: "scad", pfilter: "", syncState: "wait",
   data: { casa: [], mio: [], pantry: [] },
   loaded: { casa: false, mio: false, pantry: false },
   server: { casa: false, mio: false, pantry: false },
@@ -192,7 +203,7 @@ function subscribe(kind) {
         ? "La dispensa non è ancora accessibile: aggiorna le regole di Firestore con il nuovo firestore.rules (vedi README)."
         : "La lista non è accessibile: controlla le regole di Firestore (vedi README).")
       : "La lista si è scollegata. Tocca il pulsante aggiorna per riprovare.";
-    $("sync").dataset.state = "error";
+    setSyncState("error");
     renderData();
   });
   unsubs.push(unsub);
@@ -246,36 +257,55 @@ function miniAvatar(uid) {
 }
 function houseName() { return (state.house && state.house.name) || "La nostra casa"; }
 function updateHouseName() {
-  $("tagline").textContent = state.house && state.house.name ? state.house.name : "la spesa di casa nostra";
+  const t = document.getElementById("house-title");
+  if (t) t.textContent = houseName();
   const inp = document.getElementById("house-name");
   if (inp && document.activeElement !== inp) inp.value = state.house?.name || "";
 }
 function updateMeButton() {
-  $("settings-btn").innerHTML = avatarSvg(state.look.avatar, state.look.color);
+  $("tab-ico-casa").innerHTML = avatarSvg(state.look.avatar, state.look.color);
 }
 function checkServerWaiters() {
   if (state.server.casa && state.server.mio && state.server.pantry) { serverWaiters.forEach(f => f(true)); serverWaiters = []; }
 }
+const SYNC_LABEL = { wait: "Collegamento in corso", live: "Sincronizzato", pending: "Salvataggio in corso", offline: "Offline: le modifiche verranno salvate appena torna la rete", error: "Non collegato" };
+function setSyncState(st) {
+  state.syncState = st;
+  document.querySelectorAll("[data-act=refresh]").forEach(el => {
+    el.dataset.state = st === "offline" ? "pending" : st;
+    el.setAttribute("aria-label", `Aggiorna · ${SYNC_LABEL[st] || ""}`);
+  });
+}
 function setSync() {
-  const el = $("sync");
   const pending = Object.values(state.pendingMap || {}).some(Boolean);
-  if (!navigator.onLine) { el.dataset.state = "pending"; el.setAttribute("aria-label", "Offline: le modifiche verranno salvate appena torna la rete"); }
-  else if (pending) { el.dataset.state = "pending"; el.setAttribute("aria-label", "Salvataggio in corso"); }
-  else { el.dataset.state = "live"; el.setAttribute("aria-label", "Sincronizzato"); }
+  setSyncState(!navigator.onLine ? "offline" : pending ? "pending" : "live");
 }
 addEventListener("online", setSync); addEventListener("offline", setSync);
 
+// ---------- intestazione delle pagine: titolo grande e contatori ----------
+function headHtml({ title, titleId, sub, stats = [], back }) {
+  const st = state.syncState;
+  return `<div class="titles">${back ? `<button class="back" type="button" data-act="back">${I.chevL}<span>${esc(back)}</span></button>` : ""}
+      <h1${titleId ? ` id="${titleId}"` : ""}>${esc(title)}</h1>${sub ? `<p class="sub">${esc(sub)}</p>` : ""}</div>
+    <div class="stats">${stats.map(x => `<span class="stat${x.alert ? " alert" : ""}" title="${esc(x.label)}" aria-label="${esc(x.label)}">${x.icon}${x.n}</span>`).join("")}
+      <button class="icon-round${refreshing ? " spinning" : ""}" type="button" data-act="refresh" data-state="${st === "offline" ? "pending" : st}" aria-label="Aggiorna · ${esc(SYNC_LABEL[st] || "")}">${I.refresh}</button></div>`;
+}
+document.addEventListener("click", e => {
+  if (e.target.closest("[data-act=refresh]")) { refresh(); return; }
+  if (e.target.closest("[data-act=back]")) { state.zone = "all"; renderData(); scrollTo(0, 0); }
+});
+
 // ---------- aggiorna (pulsante e tirare giù) ----------
 async function refresh() {
-  if (refreshing || state.view !== "app") return;
+  if (refreshing || !(state.view === "app" || state.view === "settings")) return;
   refreshing = true;
-  $("refresh-btn").classList.add("spinning");
+  document.querySelectorAll("[data-act=refresh]").forEach(b => b.classList.add("spinning"));
   const reached = new Promise(res => { serverWaiters.push(res); setTimeout(() => res(false), 7000); });
   startLists();
   navigator.serviceWorker?.getRegistration().then(r => r && r.update()).catch(() => {});
   const ok = await reached;
   refreshing = false;
-  $("refresh-btn").classList.remove("spinning");
+  document.querySelectorAll("[data-act=refresh]").forEach(b => b.classList.remove("spinning"));
   endPull();
   showToast(ok ? "Aggiornato" : (navigator.onLine ? "Il server non risponde: mostro l’ultima copia salvata" : "Sei offline: mostro l’ultima copia salvata"));
 }
@@ -315,7 +345,6 @@ addEventListener("touchend", () => {
   } else endPull();
   pullDist = 0;
 });
-$("refresh-btn").addEventListener("click", refresh);
 
 // ---------- toast ----------
 function showToast(text, undo) {
@@ -340,17 +369,17 @@ async function scanAndLookup() {
   showToast("Cerco il prodotto…");
   let known = null;
   try { const snap = await getDoc(barcodeRef(code)); if (snap.exists()) known = snap.data(); } catch (_) {}
-  if (known) { $("toast").hidden = true; return { code, name: known.name, note: known.note || "", zone: known.zone || null, cat: known.cat || null, source: "casa" }; }
+  if (known) { $("toast").hidden = true; return { code, name: known.name, note: known.note || "", zone: known.zone || null, cat: known.cat || null, img: known.img || null, source: "casa" }; }
   const p = await s.lookupProduct(code);
   $("toast").hidden = true;
-  if (!p) return { code, name: "", note: "", zone: null, cat: null, source: null };
+  if (!p) return { code, name: "", note: "", zone: null, cat: null, img: null, source: null };
   const note = [p.brand, p.quantity].filter(Boolean).join(" · ");
   const zone = s.zoneFromProduct(p) || CAT_TO_ZONE[guessCat(p.name)] || null;
-  return { code, name: p.name, note, zone, cat: guessCat(p.name) || (zone ? ZONE_TO_CAT[zone] : null), source: p.kind };
+  return { code, name: p.name, note, zone, cat: guessCat(p.name) || (zone ? ZONE_TO_CAT[zone] : null), img: p.img || null, source: p.kind };
 }
 function rememberBarcode(code, data) {
   if (!code) return;
-  setDoc(barcodeRef(code), { name: data.name, zone: data.zone || null, cat: data.cat || null, note: data.note || "", at: Date.now() }).catch(e => console.warn("barcode", e));
+  setDoc(barcodeRef(code), { name: data.name, zone: data.zone || null, cat: data.cat || null, note: data.note || "", ...(data.img ? { img: data.img } : {}), at: Date.now() }).catch(e => console.warn("barcode", e));
 }
 
 // ======================================================================
@@ -370,7 +399,7 @@ document.querySelectorAll("#add-form .chipbtn").forEach(b => b.addEventListener(
   state.status = b.dataset.v;
   document.querySelectorAll("#add-form .chipbtn").forEach(x => x.setAttribute("aria-pressed", String(x === b)));
 }));
-document.querySelectorAll("#view-shop .seg2 button").forEach(t => t.addEventListener("click", () => {
+document.querySelectorAll("#view-shop .utabs button").forEach(t => t.addEventListener("click", () => {
   state.list = t.dataset.list; state.filter = "all"; store.set("onf-tab", state.list); renderData();
 }));
 $("add-scan").addEventListener("click", async () => {
@@ -456,22 +485,26 @@ function askDelete(id) {
 
 function renderShop() {
   const list = state.list;
-  document.querySelectorAll("#view-shop .seg2 button").forEach(t => t.setAttribute("aria-selected", String(t.dataset.list === list)));
+  document.querySelectorAll("#view-shop .utabs button").forEach(t => t.setAttribute("aria-selected", String(t.dataset.list === list)));
   $("shop-hint").textContent = list === "casa"
     ? "Lista condivisa: la vede e la modifica chi ha il codice di casa."
     : "Lista personale: la vedi solo tu, su questo telefono.";
   for (const l of ["casa", "mio"]) {
     const n = state.data[l].filter(i => i.status !== "ok").length;
-    const el = $("count-" + l); el.textContent = n; el.classList.toggle("zero", n === 0);
+    $("count-" + l).textContent = n || "";
   }
-
   const items = state.data[list];
-  const counts = {};
-  items.forEach(i => { if (i.status !== "ok") counts[i.cat] = (counts[i.cat] || 0) + 1; });
-  const fopts = [{ id: "all", label: "Tutto" }, ...CATS.filter(c => counts[c.id] || state.filter === c.id)];
-  $("shop-filters").hidden = fopts.length < 3;
-  $("shop-filters").innerHTML = fopts.map(c =>
-    `<button type="button" data-f="${c.id}" data-c="${c.id}" aria-pressed="${state.filter === c.id}">${c.id !== "all" ? `<span class="dot"></span>` : ""}${c.label}${c.id !== "all" ? ` · ${counts[c.id] || 0}` : ""}</button>`).join("");
+  const need = items.filter(i => i.status !== "ok")
+    .sort((a, b) => (a.status === b.status ? 0 : a.status === "out" ? -1 : 1) || (b.at || 0) - (a.at || 0));
+  const home = items.filter(i => i.status === "ok").sort((a, b) => (b.boughtAt || 0) - (a.boughtAt || 0));
+  const outN = need.filter(i => i.status === "out").length;
+  $("shop-head").innerHTML = headHtml({
+    title: "Da comprare",
+    stats: [
+      { icon: I.alert, n: outN, label: `${outN} ${outN === 1 ? "finito" : "finiti"}`, alert: outN > 0 },
+      { icon: I.basketSm, n: need.length, label: `${need.length} da comprare` },
+    ],
+  });
 
   const showWho = list === "casa";
   const who = (uid, name) => personName(uid, name);
@@ -481,46 +514,38 @@ function renderShop() {
     $("shop-list").innerHTML = parts.join("") + `<div class="empty"><strong>Sto caricando la lista</strong>Tra un attimo vedi cosa manca in casa.</div>`;
     return;
   }
-  const match = i => state.filter === "all" || i.cat === state.filter;
-  const need = items.filter(i => i.status !== "ok" && match(i))
-    .sort((a, b) => (a.status === b.status ? 0 : a.status === "out" ? -1 : 1) || (b.at || 0) - (a.at || 0));
-  const home = items.filter(i => i.status === "ok" && match(i)).sort((a, b) => (b.boughtAt || 0) - (a.boughtAt || 0));
-  const outN = need.filter(i => i.status === "out").length, lowN = need.length - outN;
-
-  let sec = `<section><h2 class="section-title">Da comprare <small>${need.length ? `${outN} ${outN === 1 ? "finito" : "finiti"} · ${lowN} in esaurimento` : ""}</small></h2>`;
   if (!need.length) {
-    sec += items.length
-      ? `<div class="empty"><strong>Non manca niente</strong>${state.filter === "all" ? "Quando qualcosa finisce, scrivilo qui sopra o toccalo tra le cose in casa." : "Niente da comprare in questa categoria."}</div>`
-      : `<div class="empty"><strong>La lista è vuota</strong>Scrivi qui sopra la prima cosa finita, per esempio “carta igienica” o “latte”.${list === "casa" ? " Chi ha il codice di casa la vedrà subito." : ""}</div>`;
+    parts.push(items.length
+      ? `<div class="empty"><strong>Non manca niente</strong>Quando qualcosa finisce, scrivilo qui sopra o tocca “Finito” tra le cose in casa.</div>`
+      : `<div class="empty"><strong>La lista è vuota</strong>Scrivi qui sopra la prima cosa finita, per esempio “carta igienica” o “latte”.${list === "casa" ? " Chi ha il codice di casa la vedrà subito." : ""}</div>`);
   } else {
+    let cards = `<div class="cards">`;
     for (const c of CATS) {
       const g = need.filter(i => (catById[i.cat] ? i.cat : "altro") === c.id);
       if (!g.length) continue;
-      sec += `<div class="group" data-c="${c.id}"><h3><span class="dot"></span>${c.label}</h3>`;
+      cards += `<section class="bleed-card" data-c="${c.id}"><div class="card-head"><h2>${c.label}</h2>
+        <div class="stats"><span class="stat" aria-label="${g.length} da comprare">${I.basketSm}${g.length}</span></div></div><div class="rows">`;
       for (const i of g) {
         const meta = [];
         if (i.note) meta.push(`<span>${esc(i.note)}</span>`);
-        if (showWho) meta.push(`<span>segnato da ${miniAvatar(i.byUid)}<b>${esc(who(i.byUid, i.byName))}</b> ${ago(i.at)}</span>`);
+        if (showWho) meta.push(`<span>${miniAvatar(i.byUid)}<b>${esc(who(i.byUid, i.byName))}</b> · ${ago(i.at)}</span>`);
         else if (i.at) meta.push(`<span>${ago(i.at)}</span>`);
         if (i.pantryId) meta.push(`<span>dalla dispensa</span>`);
         const del = pendingDel === i.id
           ? `<button class="confirm-del" data-act="del-yes" data-id="${esc(i.id)}">Elimina</button>`
           : `<button class="icon-btn" data-act="del" data-id="${esc(i.id)}" aria-label="Elimina ${esc(i.name)}">${I.trash}</button>`;
-        sec += `<div class="item">
+        cards += `<div class="item">
           <button class="check" data-act="buy" data-id="${esc(i.id)}" aria-label="Segna ${esc(i.name)} come comprato">${I.check}</button>
           <div class="body"><div class="name">${esc(i.name)}</div>${meta.length ? `<div class="meta">${meta.join("")}</div>` : ""}</div>
           <div class="right"><button class="tag ${i.status === "low" ? "low" : "out"}" data-act="urg" data-id="${esc(i.id)}">${i.status === "low" ? "Sta finendo" : "Finito"}</button>${del}</div>
         </div>`;
       }
-      sec += `</div>`;
+      cards += `</div></section>`;
     }
+    parts.push(cards + `</div>`);
   }
-  sec += `</section>`;
-  parts.push(sec);
-
   if (home.length) {
-    let h = `<section><h2 class="section-title">In casa <small>${home.length}</small></h2>
-      <p class="hint" style="margin:0 4px 8px">Le cose già comprate restano qui. Quando finiscono di nuovo, tocca “Finito”.</p><div class="home">`;
+    let h = `<h2 class="section-title">In casa <small>tocca “Finito” quando finisce di nuovo</small></h2><div class="home">`;
     for (const i of home) {
       const t = showWho && i.boughtAt ? `Preso da ${who(i.boughtUid, i.boughtName)} ${ago(i.boughtAt)}` : (i.boughtAt ? `Preso ${ago(i.boughtAt)}` : "");
       h += `<span class="chip" data-c="${catById[i.cat] ? i.cat : "altro"}" title="${esc(t)}"><span class="dot"></span><span class="label">${esc(i.name)}</span>`;
@@ -529,24 +554,21 @@ function renderShop() {
         : `<button data-act="again" data-id="${esc(i.id)}">Finito</button><button class="x" data-act="del" data-id="${esc(i.id)}" aria-label="Elimina ${esc(i.name)}">✕</button>`;
       h += `</span>`;
     }
-    h += `</div></section>`;
-    parts.push(h);
+    parts.push(h + `</div>`);
   }
   $("shop-list").innerHTML = parts.join("");
 }
-$("shop-filters").addEventListener("click", e => {
-  const b = e.target.closest("button[data-f]"); if (!b) return;
-  state.filter = state.filter === b.dataset.f ? "all" : b.dataset.f; renderData();
-});
 
 // ======================================================================
 // DISPENSA
 // ======================================================================
-$("pantry-scan").innerHTML = I.scan;
 $("pantry-add").innerHTML = `${I.plus}<span>Aggiungi</span>`;
+document.querySelectorAll("#view-pantry .utabs button").forEach(t => t.addEventListener("click", () => {
+  state.pview = t.dataset.pview; state.zone = "all"; renderData(); scrollTo(0, 0);
+}));
 $("pantry-search").addEventListener("input", e => { state.search = e.target.value; renderData(); });
 $("pantry-add").addEventListener("click", () => openPantrySheet(null));
-$("pantry-scan").addEventListener("click", async () => {
+async function scanToPantry() {
   const r = await scanAndLookup();
   if (!r) return;
   const existing = state.data.pantry.find(p => p.barcode === r.code) || (r.name && state.data.pantry.find(p => norm(p.name) === norm(r.name)));
@@ -556,10 +578,14 @@ $("pantry-scan").addEventListener("click", async () => {
     return;
   }
   openPantrySheet(null, r);
-});
+}
+const SORTS = { scad: "Scadenza", nome: "Nome", qty: "Quantità" };
 $("pantry-filters").addEventListener("click", e => {
-  const b = e.target.closest("button[data-f]"); if (!b) return;
-  state.zone = state.zone === b.dataset.f ? "all" : b.dataset.f; renderData();
+  const b = e.target.closest("button[data-pf]"); if (!b) return;
+  const f = b.dataset.pf;
+  if (f === "sort") { const k = Object.keys(SORTS); state.psort = k[(k.indexOf(state.psort) + 1) % k.length]; }
+  else state.pfilter = state.pfilter === f ? "" : f;
+  renderData();
 });
 
 function changeQty(item, delta) {
@@ -577,11 +603,12 @@ function changeQty(item, delta) {
 }
 
 $("pantry-list").addEventListener("keydown", e => {
-  if ((e.key === "Enter" || e.key === " ") && e.target.matches("[data-act=edit]")) { e.preventDefault(); e.target.click(); }
+  if ((e.key === "Enter" || e.key === " ") && e.target.matches("[data-act=zone]")) { e.preventDefault(); e.target.click(); }
 });
 $("pantry-list").addEventListener("click", e => {
   const b = e.target.closest("[data-act]");
   if (!b) return;
+  if (b.dataset.act === "zone") { state.zone = b.dataset.id; state.pfilter = ""; renderData(); scrollTo(0, 0); return; }
   const item = state.data.pantry.find(p => p.id === b.dataset.id);
   if (!item) return;
   const act = b.dataset.act;
@@ -594,21 +621,70 @@ $("pantry-list").addEventListener("click", e => {
   }
 });
 
+const zoneOf = p => (zoneById[p.zone] ? p.zone : "credenza");
+const isExpiring = p => (Number(p.qty) || 0) > 0 && daysLeft(p.expiry) != null && daysLeft(p.expiry) <= 3;
+function inShopping(p) {
+  return state.data.casa.some(i => i.status !== "ok" && (i.pantryId === p.id || norm(i.name) === norm(p.name)));
+}
+function productPic(p, cls = "mono") {
+  if (p.img) return `<img src="${esc(p.img)}" alt="" loading="lazy" referrerpolicy="no-referrer">`;
+  const letter = (p.name || "?").trim().charAt(0).toUpperCase();
+  return `<span class="${cls}" aria-hidden="true">${esc(letter)}</span>`;
+}
+function productCard(p) {
+  const qty = Number(p.qty) || 0;
+  const inShop = inShopping(p);
+  return `<article class="p-card${qty === 0 ? " empty-qty" : ""}" data-z="${zoneOf(p)}">
+    <div class="p-top">${qty > 0 && p.expiry ? expLabel(p.expiry) : qty === 0 ? `<span class="exp">esaurito</span>` : ""}<span class="qty" aria-label="Quantità ${qty}">×${qty}</span></div>
+    <button class="p-tap" type="button" data-act="edit" data-id="${esc(p.id)}" aria-label="Modifica ${esc(p.name)}">
+      <div class="p-pic">${productPic(p)}</div>
+      <div class="p-name">${esc(p.name)}</div>${p.note ? `<div class="p-note">${esc(p.note)}</div>` : ""}
+    </button>
+    <div class="p-actions">
+      <div class="mini-step">
+        <button type="button" data-act="dec" data-id="${esc(p.id)}" aria-label="Uno in meno di ${esc(p.name)}">${I.minus}</button>
+        <button type="button" data-act="inc" data-id="${esc(p.id)}" aria-label="Uno in più di ${esc(p.name)}">${I.plus}</button>
+      </div>
+      ${inShop
+        ? `<button type="button" class="cart-pill" disabled>${I.check}<span>In lista</span></button>`
+        : `<button type="button" class="cart-pill" data-act="toshop" data-id="${esc(p.id)}">${I.basketSm}<span>Spesa</span></button>`}
+    </div>
+  </article>`;
+}
+
 function renderPantry() {
   const items = state.data.pantry;
-  const q = norm(state.search);
-  // in scadenza (entro 3 giorni, o già scaduti)
-  const exp = items.filter(p => (Number(p.qty) || 0) > 0 && daysLeft(p.expiry) != null && daysLeft(p.expiry) <= 3)
-    .sort((a, b) => daysLeft(a.expiry) - daysLeft(b.expiry));
+  const detail = state.pview === "zone" && state.zone !== "all" && zoneById[state.zone];
+  const homeView = state.pview === "zone" && !detail;
+  document.querySelectorAll("#view-pantry .utabs button").forEach(t => t.setAttribute("aria-selected", String(t.dataset.pview === state.pview)));
+  $("view-pantry").querySelector(".utabs").hidden = !!detail;
+
+  const scope = detail ? items.filter(p => zoneOf(p) === state.zone) : items;
+  const inStock = scope.filter(p => (Number(p.qty) || 0) > 0).length;
+  const expN = scope.filter(isExpiring).length;
+  $("pantry-head").innerHTML = headHtml({
+    title: detail ? detail.label : state.pview === "all" ? "In casa" : "La dispensa",
+    back: detail ? "Dispensa" : null,
+    sub: detail ? detail.hint : null,
+    stats: [
+      { icon: I.box, n: inStock, label: `${inStock} prodotti in casa` },
+      { icon: I.clock, n: expN, label: `${expN} da consumare presto`, alert: expN > 0 },
+    ],
+  });
+  $("pantry-search-wrap").hidden = state.pview !== "all";
+  $("pantry-filters").hidden = homeView;
+  if (!homeView) {
+    $("pantry-filters").innerHTML = `<button type="button" class="pill" data-pf="sort" aria-label="Ordina per ${SORTS[state.psort]}">${SORTS[state.psort]}${I.chevD}</button>
+      <button type="button" class="pill" data-pf="exp" aria-pressed="${state.pfilter === "exp"}">In scadenza</button>
+      <button type="button" class="pill" data-pf="out" aria-pressed="${state.pfilter === "out"}">Esauriti</button>`;
+  }
+
+  // in scadenza (entro 3 giorni, o già scaduti): solo nella pagina principale
+  const exp = homeView ? items.filter(isExpiring).sort((a, b) => daysLeft(a.expiry) - daysLeft(b.expiry)) : [];
   $("pantry-expiring").innerHTML = exp.length
     ? `<div class="expiring"><h2>${exp.length === 1 ? "1 cosa da consumare presto" : `${exp.length} cose da consumare presto`}</h2>
        <ul>${exp.map(p => { const n = daysLeft(p.expiry); return `<li>${esc(p.name)} · ${n < 0 ? "scaduto" : n === 0 ? "oggi" : n === 1 ? "domani" : `${n} gg`}</li>`; }).join("")}</ul></div>`
     : "";
-
-  const counts = {};
-  items.forEach(p => { counts[p.zone] = (counts[p.zone] || 0) + 1; });
-  $("pantry-filters").innerHTML = [{ id: "all", label: "Tutto" }, ...ZONES].map(z =>
-    `<button type="button" data-f="${z.id}" data-z="${z.id}" aria-pressed="${state.zone === z.id}">${z.id !== "all" ? `<span class="dot"></span>` : ""}${z.label}${z.id !== "all" ? ` · ${counts[z.id] || 0}` : ""}</button>`).join("");
 
   const parts = [];
   if (state.problems.pantry) parts.push(`<div class="notice error">${esc(state.problems.pantry)}</div>`);
@@ -616,50 +692,46 @@ function renderPantry() {
     $("pantry-list").innerHTML = parts.join("") + `<div class="empty"><strong>Sto aprendo la dispensa</strong>Un attimo…</div>`;
     return;
   }
-  if (!items.length) {
-    parts.push(`<div class="empty"><strong>La dispensa è vuota</strong>Tocca “Aggiungi” o scansiona il codice a barre di un prodotto. Dividi le cose tra frigo, freezer, credenza, pulizia e bagno, così sapete sempre cosa c’è in casa.</div>`);
-    $("pantry-list").innerHTML = parts.join("");
-    return;
-  }
-  const visible = items.filter(p => (state.zone === "all" || p.zone === state.zone) && (!q || norm(p.name).includes(q) || norm(p.note).includes(q)));
-  if (!visible.length) {
-    parts.push(`<div class="empty"><strong>Nessun risultato</strong>${q ? `Niente che corrisponda a “${esc(state.search)}”.` : "Questa zona è vuota."}</div>`);
-    $("pantry-list").innerHTML = parts.join("");
-    return;
-  }
-  const sorter = (a, b) => ((Number(b.qty) > 0) - (Number(a.qty) > 0))
-    || ((daysLeft(a.expiry) ?? 9999) - (daysLeft(b.expiry) ?? 9999))
-    || a.name.localeCompare(b.name, "it");
-  for (const z of ZONES) {
-    const g = visible.filter(p => (zoneById[p.zone] ? p.zone : "credenza") === z.id).sort(sorter);
-    if (!g.length) continue;
-    let s = `<div class="group" data-z="${z.id}"><div class="zone-head"><h3><span class="dot"></span>${z.label}</h3></div>`;
-    for (const p of g) {
-      const qty = Number(p.qty) || 0;
-      const meta = [];
-      if (p.note) meta.push(`<span>${esc(p.note)}</span>`);
-      if (qty > 0 && p.expiry) meta.push(expLabel(p.expiry));
-      if (qty === 0) meta.push(`<span>esaurito</span>`);
-      const inShop = state.data.casa.some(i => i.status !== "ok" && (i.pantryId === p.id || norm(i.name) === norm(p.name)));
-      const right = qty === 0 && !inShop
-        ? `<button class="tag out" data-act="toshop" data-id="${esc(p.id)}">In lista</button>`
-        : "";
-      s += `<div class="item p-item${qty === 0 ? " empty-qty" : ""}" data-z="${z.id}">
-        <span class="left-mark"></span>
-        <div class="body tap" data-act="edit" data-id="${esc(p.id)}" role="button" tabindex="0" aria-label="Modifica ${esc(p.name)}">
-          <div class="name">${esc(p.name)}</div>${meta.length ? `<div class="meta">${meta.join("")}${inShop ? "<span>in lista</span>" : ""}</div>` : (inShop ? `<div class="meta"><span>in lista</span></div>` : "")}
-        </div>
-        <div class="right">${right}
-          <div class="stepper" aria-label="Quantità">
-            <button data-act="dec" data-id="${esc(p.id)}" aria-label="Uno in meno di ${esc(p.name)}">${I.minus}</button>
-            <output>${qty}</output>
-            <button data-act="inc" data-id="${esc(p.id)}" aria-label="Uno in più di ${esc(p.name)}">${I.plus}</button>
-          </div>
-        </div>
+
+  if (homeView) {
+    // una scheda per zona, con dentro le cose che ci sono
+    let cards = `<div class="cards">`;
+    for (const z of ZONES) {
+      const g = items.filter(p => zoneOf(p) === z.id && (Number(p.qty) || 0) > 0)
+        .sort((a, b) => ((daysLeft(a.expiry) ?? 9999) - (daysLeft(b.expiry) ?? 9999)) || (b.updatedAt || 0) - (a.updatedAt || 0));
+      const e = g.filter(isExpiring).length;
+      const shown = g.slice(0, 8);
+      cards += `<div class="bleed-card zone-card" data-z="${z.id}" data-act="zone" data-id="${z.id}" role="button" tabindex="0" aria-label="${z.label}: ${g.length} prodotti">
+        <div class="card-head"><h2>${z.label}</h2><div class="stats">
+          <span class="stat">${I.box}${g.length}</span>${e ? `<span class="stat alert">${I.clock}${e}</span>` : ""}</div></div>
+        ${g.length
+          ? `<div class="zone-strip">${shown.map(p => `<div class="thing"><div class="pic">${productPic(p)}</div><div class="tn">${esc(p.name)}${p.qty > 1 ? ` ×${p.qty}` : ""}</div></div>`).join("")}${g.length > shown.length ? `<div class="thing more"><div class="pic">+${g.length - shown.length}</div><div class="tn">altri</div></div>` : ""}</div>`
+          : `<div class="zone-empty">Vuoto · tocca per aggiungere ${esc(z.hint.split(",")[0])} e altro</div>`}
       </div>`;
     }
-    s += `</div>`;
-    parts.push(s);
+    parts.push(cards + `</div>`);
+    $("pantry-list").innerHTML = parts.join("");
+    return;
+  }
+
+  // griglia di prodotti: dettaglio di una zona oppure elenco di tutto
+  const q = norm(state.search);
+  let visible = scope.filter(p => state.pview !== "all" || !q || norm(p.name).includes(q) || norm(p.note).includes(q));
+  if (state.pfilter === "exp") visible = visible.filter(isExpiring);
+  if (state.pfilter === "out") visible = visible.filter(p => (Number(p.qty) || 0) === 0);
+  const sorters = {
+    scad: (a, b) => ((Number(b.qty) > 0) - (Number(a.qty) > 0)) || ((daysLeft(a.expiry) ?? 9999) - (daysLeft(b.expiry) ?? 9999)) || a.name.localeCompare(b.name, "it"),
+    nome: (a, b) => a.name.localeCompare(b.name, "it"),
+    qty: (a, b) => (Number(b.qty) || 0) - (Number(a.qty) || 0) || a.name.localeCompare(b.name, "it"),
+  };
+  visible.sort(sorters[state.psort]);
+  if (!items.length) {
+    parts.push(`<div class="empty"><strong>La dispensa è vuota</strong>Tocca “Aggiungi”, scansiona un codice a barre o importa uno scontrino Esselunga.</div>`);
+  } else if (!visible.length) {
+    parts.push(`<div class="empty"><strong>${q ? "Nessun risultato" : detail ? `${esc(detail.label)}: niente qui` : "Niente qui"}</strong>${
+      q ? `Niente che corrisponda a “${esc(state.search)}”.` : state.pfilter ? "Prova a togliere il filtro." : "Tocca “Aggiungi” per mettere qualcosa in questa zona."}</div>`);
+  } else {
+    parts.push(`<div class="grid">${visible.map(productCard).join("")}</div>`);
   }
   $("pantry-list").innerHTML = parts.join("");
 }
@@ -670,7 +742,7 @@ function openPantrySheet(item, scanned) {
   const isNew = !item;
   const d = item ? { ...item } : {
     name: scanned?.name || "", zone: scanned?.zone || (state.zone !== "all" ? state.zone : CAT_TO_ZONE[guessCat(scanned?.name || "")] || "credenza"),
-    qty: 1, expiry: "", note: scanned?.note || "", barcode: scanned?.code || null,
+    qty: 1, expiry: "", note: scanned?.note || "", barcode: scanned?.code || null, img: scanned?.img || null,
   };
   let zoneTouched = !!(item || scanned?.zone);
   const scrim = document.createElement("div");
@@ -681,7 +753,7 @@ function openPantrySheet(item, scanned) {
       <h2 id="sheet-title">${isNew ? "Aggiungi in dispensa" : "Modifica prodotto"}</h2>
       ${isNew && !scanned ? `<button type="button" class="btn lilac scan-big" data-scan>${I.scan}<span>Scansiona codice a barre</span></button>` : ""}
       ${scanned ? (scanned.name
-        ? `<div class="found">Trovato${scanned.source === "casa" ? " tra i vostri prodotti" : ""}: controlla e salva.</div>`
+        ? `<div class="found">${scanned.img ? `<img src="${esc(scanned.img)}" alt="" referrerpolicy="no-referrer">` : ""}<span>Trovato${scanned.source === "casa" ? " tra i vostri prodotti" : ""}: controlla e salva.</span></div>`
         : `<div class="found miss">Codice ${esc(scanned.code)} non trovato nei database. Scrivi il nome: la prossima volta lo riconosco.</div>`) : ""}
       <div class="field"><label for="ps-name">Nome</label>
         <input type="text" id="ps-name" maxlength="80" required value="${esc(d.name)}" placeholder="es. Yogurt greco"></div>
@@ -718,6 +790,7 @@ function openPantrySheet(item, scanned) {
   }));
   const applyScan = r => {
     d.barcode = r.code;
+    if (r.img) d.img = r.img;
     form.querySelector("#ps-code").textContent = r.code;
     if (r.name && !nameIn.value.trim()) nameIn.value = r.name;
     const noteIn = form.querySelector("#ps-note");
@@ -743,6 +816,7 @@ function openPantrySheet(item, scanned) {
       expiry: form.querySelector("#ps-exp").value || null,
       note: form.querySelector("#ps-note").value.trim(),
       barcode: d.barcode || null,
+      ...(d.img ? { img: d.img } : {}),
       updatedAt: Date.now(),
     };
     if (isNew) {
@@ -757,7 +831,7 @@ function openPantrySheet(item, scanned) {
     } else {
       write("pantry", item.id, data).catch(() => {});
     }
-    if (data.barcode) rememberBarcode(data.barcode, { name, zone: data.zone, cat: ZONE_TO_CAT[data.zone], note: data.note });
+    if (data.barcode) rememberBarcode(data.barcode, { name, zone: data.zone, cat: ZONE_TO_CAT[data.zone], note: data.note, img: data.img });
     closeSheet();
   });
   addEventListener("keydown", escClose);
@@ -775,7 +849,7 @@ function closeSheet() {
 let receiptModP = null;
 const receiptMod = () => (receiptModP ||= import("./receipt.js"));
 
-$("pantry-receipt").innerHTML = I.receipt;
+$("pantry-receipt").innerHTML = `${I.receipt}<span>Scontrino</span>`;
 $("pantry-receipt").addEventListener("click", openReceiptStart);
 
 function openSheet(html) {
@@ -1018,17 +1092,25 @@ function openReceiptReview(m, parsed, rows, rid, already) {
 // ======================================================================
 // AVVIO, CONDIVISIONE, NAVIGAZIONE
 // ======================================================================
-$("refresh-btn").innerHTML = I.refresh;
 updateMeButton();
 $("ptr-icon").innerHTML = I.arrow;
-$("tab-ico-spesa").innerHTML = I.cart;
-$("tab-ico-dispensa").innerHTML = I.shelf;
+$("tab-ico-spesa").innerHTML = I.tabBasket;
+$("tab-ico-dispensa").innerHTML = I.tabPantry;
+$("tab-ico-scan").innerHTML = I.tabScan;
 document.querySelectorAll("#tabbar [data-tab]").forEach(b => b.addEventListener("click", () => {
+  const t = b.dataset.tab;
+  if (t === "casa") { state.view = "settings"; render(); scrollTo(0, 0); return; }
+  if (state.view === "app" && state.tab === t && t === "dispensa") state.zone = "all";   // ritocco = torna alle zone
   if (state.view !== "app") { state.view = "app"; state.justCreated = false; }
-  state.tab = b.dataset.tab; store.set("onf-section", state.tab);
+  state.tab = t; store.set("onf-section", t);
   render(); scrollTo(0, 0);
 }));
-$("settings-btn").addEventListener("click", () => { state.view = state.view === "settings" ? "app" : "settings"; render(); });
+document.querySelector("#tabbar [data-action=scan]").addEventListener("click", () => {
+  if (state.view !== "app") { state.view = "app"; state.justCreated = false; }
+  state.tab = "dispensa"; store.set("onf-section", "dispensa");
+  render();
+  scanToPantry();
+});
 
 function pickerHtml() {
   return `<div class="av-grid" role="radiogroup" aria-label="Avatar">${AVATARS.map(a =>
@@ -1054,27 +1136,68 @@ function bindPicker(root) {
   });
 }
 
+const HERO_ART = `<svg viewBox="0 0 360 300" role="img" aria-label="Una borsa della spesa con pane, una bottiglia e verdure, accanto a una mensola con barattoli">
+  <rect x="175" y="34" width="185" height="196" fill="#e7e7e7"/>
+  <path d="M40 72C62 14 168 2 230 58c48 44 98 62 130 92v96c-80-10-158-16-220-6C72 252 22 206 26 142c2-30 5-52 14-70z" fill="#2f4a2c"/>
+  <path d="M18 232c22-36 104-42 186-26 70 14 132 10 156 24v70H40c-26-10-36-44-22-68z" fill="#d8c07f"/>
+  <circle cx="118" cy="84" r="32" fill="#a9c5d4"/>
+  <path d="M118 84l-12 13M118 84l3-19" stroke="#141414" stroke-width="2.2" stroke-linecap="round"/>
+  <circle cx="118" cy="84" r="26" fill="none" stroke="#141414" stroke-width="1.4" opacity=".5"/>
+  <ellipse cx="236" cy="196" rx="60" ry="46" fill="#f3bab7"/>
+  <ellipse cx="262" cy="118" rx="14" ry="26" fill="#f4ecc6"/>
+  <ellipse cx="80" cy="182" rx="18" ry="16" fill="#a9c5d4"/>
+  <ellipse cx="112" cy="176" rx="16" ry="22" fill="#f3bab7"/>
+  <ellipse cx="80" cy="268" rx="26" ry="16" fill="#f3bab7"/>
+  <g fill="none" stroke="#141414" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M180 150h112l-11 112h-90z"/>
+    <path d="M212 150c0-30 46-30 46 0"/>
+    <path d="M198 150c6-30 16-54 30-68 8-6 14 0 9 9-11 20-17 38-20 59"/>
+    <path d="M214 104l8 5M209 118l8 4M205 132l7 4"/>
+    <path d="M250 150v-36c0-8 6-12 6-20V82h10v12c0 8 6 12 6 20v36"/>
+    <path d="M256 88h10"/>
+    <path d="M276 150c4-30 24-46 38-52-4 22-14 40-28 52M284 150c8-18 22-26 34-28-6 14-16 22-26 28"/>
+    <path d="M194 182h80M196 206h76" opacity=".4"/>
+    <path d="M52 202h112"/>
+    <rect x="62" y="168" width="24" height="34" rx="4"/><path d="M60 168h28"/>
+    <rect x="96" y="156" width="28" height="46" rx="5"/><path d="M94 156h32"/>
+    <rect x="134" y="176" width="20" height="26" rx="4"/><path d="M132 176h24"/>
+    <path d="M60 252h42l-5 32H65z"/>
+    <path d="M80 252c-2-16-12-26-24-30 6 14 14 24 24 30zM82 252c2-18 12-30 26-34-4 16-14 28-26 34zM81 250c0-14 2-26 0-38"/>
+  </g>
+</svg>`;
+
 function renderSetup() {
   $("view-setup").innerHTML = `
-    <div class="panel">
-      <h2>Benvenuto</h2>
-      <p>Segnate qui cosa finisce in casa e cosa c’è in dispensa. Una persona crea la casa, l’altra entra con il codice.</p>
+    <div class="hero">
+      <h1>Oh no,<br>è finito!</h1>
+      <p>Cosa manca, cosa c’è in dispensa: la spesa di casa, da fare in due.</p>
+      <div class="hero-art">${HERO_ART}</div>
+    </div>
+    <div class="panel" data-c="igiene">
+      <h2>Chi sei?</h2>
       <div class="profile-head"><span class="big-av">${avatarSvg(state.look.avatar, state.look.color)}</span>
         <div class="field" style="flex:1"><label for="setup-name">Come ti chiami?</label>
         <input id="setup-name" type="text" maxlength="30" placeholder="es. Giulia" value="${esc(state.me)}" autocomplete="given-name"></div></div>
       <div class="field"><span class="lbl">Scegli il tuo avatar</span><div class="av-picker">${pickerHtml()}</div></div>
+    </div>
+    <div class="panel" data-c="pulizia">
+      <h2>Nuova casa</h2>
+      <p>Crei la lista e la dispensa, poi inviti l’altra persona con un link.</p>
       <button class="btn" id="setup-create" type="button">Crea una nuova casa</button>
-      <div class="or">oppure</div>
-      <div class="field"><label for="setup-code">Hai ricevuto un codice o un link?</label>
+    </div>
+    <div class="or">oppure</div>
+    <div class="panel" data-c="frigo">
+      <h2>Ho un invito</h2>
+      <div class="field"><label for="setup-code">Codice o link ricevuto</label>
         <input id="setup-code" type="text" placeholder="XXXX-XXXX-XXXX-XXXX" value="${esc(state.code || "")}" autocapitalize="characters" autocomplete="off" spellcheck="false"></div>
-      <button class="btn soft" id="setup-join" type="button">Entra nella casa</button>
-      <p id="setup-err" class="notice error" hidden></p>
-    </div>`;
+      <button class="btn" id="setup-join" type="button">Entra nella casa</button>
+    </div>
+    <p id="setup-err" class="notice error" hidden></p>`;
   bindPicker($("view-setup"));
   const err = t => { $("setup-err").textContent = t; $("setup-err").hidden = false; };
   const saveName = () => {
     const n = $("setup-name").value.trim();
-    if (!n) { err("Scrivi il tuo nome: serve all’altra persona per sapere chi ha segnato cosa."); return false; }
+    if (!n) { err("Scrivi il tuo nome: serve all’altra persona per sapere chi ha segnato cosa."); $("setup-name").focus(); return false; }
     state.me = n; store.set("onf-name", n); return true;
   };
   $("setup-create").addEventListener("click", () => {
@@ -1124,9 +1247,11 @@ function renderMembers() {
 }
 
 function renderSettings() {
+  const nMembers = Math.max(1, state.members.length);
   $("view-settings").innerHTML = `
+    <div class="page-head">${headHtml({ title: houseName(), titleId: "house-title", sub: "La casa e chi ci abita", stats: [{ icon: I.people, n: nMembers, label: nMembers === 1 ? "1 persona" : `${nMembers} persone` }] })}</div>
     ${state.justCreated ? `<div class="notice">Casa creata! Ora invita l’altra persona con il link qui sotto.</div>` : ""}
-    <div class="panel" id="profile-panel">
+    <div class="panel" data-c="igiene" id="profile-panel">
       <h2>Il tuo profilo</h2>
       <div class="profile-head"><span class="big-av">${avatarSvg(state.look.avatar, state.look.color)}</span>
         <div class="field" style="flex:1"><label for="set-name">Nome</label>
@@ -1134,15 +1259,15 @@ function renderSettings() {
       <div class="field"><span class="lbl">Avatar</span><div class="av-picker">${pickerHtml()}</div></div>
     </div>
 
-    <div class="panel">
+    <div class="panel" data-c="pulizia">
       <div class="field"><label for="house-name">Nome della casa</label>
         <input id="house-name" type="text" maxlength="40" placeholder="La nostra casa" value="${esc(state.house?.name || "")}"></div>
-      <div class="section-title" style="margin:4px 0 0"><span>Chi c’è</span><small id="members-count"></small></div>
+      <div class="card-head" style="padding:0"><h3>Chi c’è</h3><small id="members-count"></small></div>
       <div class="members" id="members-list"></div>
       <p id="invite-hint" style="font-size:13.5px">Per ora ci sei solo tu. Invita l’altra persona qui sotto.</p>
     </div>
 
-    <div class="panel">
+    <div class="panel" data-c="frigo">
       <h3>Invita in casa</h3>
       <p>Manda questo link all’altra persona. Chi ha il codice può vedere e modificare la lista “Casa” e la dispensa, quindi tenetelo tra voi.</p>
       <div class="code" id="invite-code">${esc(state.code)}</div>
@@ -1156,10 +1281,7 @@ function renderSettings() {
       </ol>
     </div>
 
-    <div class="row">
-      <button class="btn grow" id="settings-done" type="button">Torna alla lista</button>
-      <button class="btn danger grow" id="leave" type="button">Esci da questa casa</button>
-    </div>
+    <button class="btn danger" id="leave" type="button">Esci da questa casa</button>
     <p id="leave-confirm" class="notice error" hidden>Uscendo, su questo telefono non vedrai più lista e dispensa di casa finché non reinserisci il codice. I dati restano salvati per gli altri. <button class="confirm-del" id="leave-yes" type="button">Esci</button></p>`;
   renderMembers();
   bindPicker($("profile-panel"));
@@ -1197,7 +1319,6 @@ function renderSettings() {
       showToast("Rimosso dall’elenco. Con il codice potrà sempre rientrare.");
     }
   });
-  $("settings-done").addEventListener("click", () => { state.justCreated = false; state.view = "app"; render(); });
   $("leave").addEventListener("click", () => { $("leave-confirm").hidden = false; });
   $("leave-yes").addEventListener("click", () => {
     deleteDoc(doc(fs, "households", state.code, "members", state.uid)).catch(() => {});
@@ -1232,9 +1353,8 @@ function render() {
   $("view-shop").hidden = !(v === "app" && state.tab === "spesa");
   $("view-pantry").hidden = !(v === "app" && state.tab === "dispensa");
   $("tabbar").hidden = !(v === "app" || v === "settings");
-  $("refresh-btn").hidden = v !== "app";
-  $("settings-btn").hidden = !(v === "app" || v === "settings");
-  document.querySelectorAll("#tabbar [data-tab]").forEach(b => b.setAttribute("aria-selected", String(v === "app" && b.dataset.tab === state.tab)));
+  document.querySelectorAll("#tabbar [data-tab]").forEach(b => b.setAttribute("aria-selected",
+    String(b.dataset.tab === "casa" ? v === "settings" : v === "app" && b.dataset.tab === state.tab)));
   if (v !== lastView) {
     if (v === "setup") renderSetup();
     if (v === "settings") renderSettings();
@@ -1254,7 +1374,7 @@ document.addEventListener("visibilitychange", () => {
 const bootTimer = setTimeout(() => {
   if (!state.uid) {
     $("view-boot").innerHTML = `<strong>Non riesco a collegarmi</strong>Controlla la connessione e riapri l’app.`;
-    $("sync").dataset.state = "error";
+    setSyncState("error");
   }
 }, 10000);
 
@@ -1264,7 +1384,7 @@ onAuthStateChanged(auth, user => {
       console.error(e);
       clearTimeout(bootTimer);
       $("view-boot").innerHTML = `<strong>Accesso non riuscito</strong>${esc(e.code || "errore")}. Controlla la connessione e riapri l’app.`;
-      $("sync").dataset.state = "error";
+      setSyncState("error");
     });
     return;
   }

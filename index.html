@@ -5,8 +5,8 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Oh no, è finito!</title>
 <meta name="description" content="Lista della spesa e dispensa condivise per la casa.">
-<meta name="theme-color" content="#f3f1ee" media="(prefers-color-scheme: light)">
-<meta name="theme-color" content="#1c1b20" media="(prefers-color-scheme: dark)">
+<meta name="theme-color" content="#ffffff">
+<meta name="color-scheme" content="light">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
@@ -16,63 +16,60 @@
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600&family=Nunito:wght@500;600;700;800&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Lato:wght@400;700;900&display=swap">
 <link rel="stylesheet" href="styles.css">
 </head>
 <body>
 <div class="wrap">
-  <header class="top">
-    <div class="brand">
-      <div>
-        <h1>Oh no, è <span>finito!</span></h1>
-        <p class="tagline" id="tagline">la spesa di casa nostra</p>
-      </div>
-      <div class="actions">
-        <i class="sync" id="sync" data-state="wait" role="status" aria-label="Collegamento in corso"></i>
-        <button class="round-btn" id="refresh-btn" aria-label="Aggiorna" hidden></button>
-        <button class="round-btn me" id="settings-btn" aria-label="La tua casa e il profilo" hidden></button>
-      </div>
-    </div>
-    <div class="ptr" id="ptr" aria-hidden="true"><div class="ptr-in"><span id="ptr-icon"></span><span id="ptr-text">Tira per aggiornare</span></div></div>
-  </header>
+  <div class="ptr" id="ptr" aria-hidden="true"><div class="ptr-in"><span id="ptr-icon"></span><span id="ptr-text">Tira per aggiornare</span></div></div>
 
   <main>
-    <div class="empty" id="view-boot"><strong>Sto aprendo la lista</strong>Un attimo…</div>
+    <div class="boot" id="view-boot"><strong>Oh no, è finito!</strong><span>Sto aprendo la lista…</span></div>
     <section class="view" id="view-setup" hidden></section>
     <section class="view" id="view-settings" hidden></section>
 
     <!-- Spesa -->
     <section class="view" id="view-shop" hidden>
-      <div class="seg2" role="tablist" aria-label="Liste della spesa">
-        <button role="tab" data-list="casa" aria-selected="true">Casa <span class="count zero" id="count-casa">0</span></button>
-        <button role="tab" data-list="mio" aria-selected="false">Solo mio <span class="count zero" id="count-mio">0</span></button>
+      <div class="utabs" role="tablist" aria-label="Liste della spesa">
+        <button role="tab" data-list="casa" aria-selected="true">Casa <span class="count" id="count-casa"></span></button>
+        <button role="tab" data-list="mio" aria-selected="false">Solo mio <span class="count" id="count-mio"></span></button>
       </div>
-      <p class="hint" id="shop-hint"></p>
-      <form class="card addbar" id="add-form" autocomplete="off">
-        <input class="main-in" type="text" id="add-name" placeholder="Cosa è finito?" maxlength="80" aria-label="Nome articolo" enterkeyhint="done">
-        <button class="btn icon lilac" id="add-scan" type="button" aria-label="Scansiona codice a barre"></button>
-        <button class="btn" id="add-btn" type="submit" disabled>Aggiungi</button>
+      <div class="page-head" id="shop-head"></div>
+      <form class="addbar" id="add-form" autocomplete="off">
+        <div class="add-line">
+          <input class="main-in" type="text" id="add-name" placeholder="Cosa è finito?" maxlength="80" aria-label="Nome articolo" enterkeyhint="done">
+          <button class="in-btn" id="add-scan" type="button" aria-label="Scansiona codice a barre"></button>
+        </div>
         <div class="opts">
-          <select class="pillsel" id="add-cat" aria-label="Categoria"></select>
-          <button type="button" class="chipbtn" data-v="out" aria-pressed="true">Finito</button>
-          <button type="button" class="chipbtn" data-v="low" aria-pressed="false">Sta finendo</button>
+          <label class="pill select-pill"><span class="sr">Categoria</span><select id="add-cat"></select></label>
+          <button type="button" class="pill chipbtn" data-v="out" aria-pressed="true">Finito</button>
+          <button type="button" class="pill chipbtn" data-v="low" aria-pressed="false">Sta finendo</button>
+        </div>
+        <div class="add-line2">
           <input type="text" class="text-in" id="add-note" placeholder="Nota (marca, quantità…)" maxlength="120" aria-label="Nota">
+          <button class="btn" id="add-btn" type="submit" disabled>Aggiungi</button>
         </div>
       </form>
-      <div class="filters" id="shop-filters" role="group" aria-label="Filtra per categoria"></div>
+      <p class="hint" id="shop-hint"></p>
       <div id="shop-list"></div>
     </section>
 
     <!-- Dispensa -->
     <section class="view" id="view-pantry" hidden>
-      <div id="pantry-expiring"></div>
-      <div class="search">
-        <input type="search" id="pantry-search" placeholder="Cerca in dispensa…" aria-label="Cerca in dispensa" autocomplete="off">
-        <button class="btn icon lilac" id="pantry-scan" type="button" aria-label="Scansiona e aggiungi"></button>
-        <button class="btn icon lilac" id="pantry-receipt" type="button" aria-label="Importa uno scontrino"></button>
-        <button class="btn" id="pantry-add" type="button"></button>
+      <div class="utabs" role="tablist" aria-label="Come vedere la dispensa">
+        <button role="tab" data-pview="zone" aria-selected="true">Zone</button>
+        <button role="tab" data-pview="all" aria-selected="false">Elenco</button>
       </div>
-      <div class="filters" id="pantry-filters" role="group" aria-label="Filtra per zona"></div>
+      <div class="page-head" id="pantry-head"></div>
+      <div class="pill-row" id="pantry-actions">
+        <button class="pill" id="pantry-add" type="button"></button>
+        <button class="pill" id="pantry-receipt" type="button"></button>
+      </div>
+      <div class="search" id="pantry-search-wrap" hidden>
+        <input type="search" id="pantry-search" placeholder="Cerca in dispensa…" aria-label="Cerca in dispensa" autocomplete="off">
+      </div>
+      <div class="pill-row" id="pantry-filters" hidden></div>
+      <div id="pantry-expiring"></div>
       <div id="pantry-list"></div>
     </section>
   </main>
@@ -80,8 +77,10 @@
 
 <nav class="tabbar" id="tabbar" hidden>
   <div class="tabbar-in" role="tablist" aria-label="Sezioni">
-    <button role="tab" data-tab="spesa" aria-selected="true"><span id="tab-ico-spesa"></span>Spesa<span class="badge" id="badge-spesa" hidden></span></button>
-    <button role="tab" data-tab="dispensa" aria-selected="false"><span id="tab-ico-dispensa"></span>Dispensa<span class="badge warn" id="badge-dispensa" hidden></span></button>
+    <button role="tab" data-tab="spesa" aria-selected="true"><span class="tab-ico" id="tab-ico-spesa"></span><span class="tab-lbl">Spesa</span><span class="badge" id="badge-spesa" hidden></span></button>
+    <button role="tab" data-tab="dispensa" aria-selected="false"><span class="tab-ico" id="tab-ico-dispensa"></span><span class="tab-lbl">Dispensa</span><span class="badge warn" id="badge-dispensa" hidden></span></button>
+    <button type="button" data-action="scan"><span class="tab-ico" id="tab-ico-scan"></span><span class="tab-lbl">Scansiona</span></button>
+    <button role="tab" data-tab="casa" aria-selected="false"><span class="tab-ico tab-av" id="tab-ico-casa"></span><span class="tab-lbl">Casa</span></button>
   </div>
 </nav>
 

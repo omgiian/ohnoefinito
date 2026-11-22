@@ -360,7 +360,8 @@ const SOURCES = [
   ["https://world.openbeautyfacts.org", "beauty"],
   ["https://world.openproductsfacts.org", "products"],
 ];
-const FIELDS = "product_name,product_name_it,generic_name_it,generic_name,brands,quantity,categories_tags";
+const FIELDS = "product_name,product_name_it,generic_name_it,generic_name,brands,quantity,categories_tags,image_front_small_url";
+const IMG_RE = /^https:\/\/images\.open(food|beauty|products)facts\.org\/[^\s"'<>]{1,250}$/;
 
 async function fetchJson(url, ms) {
   const ctl = new AbortController();
@@ -382,7 +383,8 @@ export async function lookupProduct(code) {
     if (!name) continue;
     const brand = String(p.brands || "").split(",")[0].trim();
     const quantity = String(p.quantity || "").trim();
-    return { name, brand, quantity, tags: p.categories_tags || [], kind };
+    const img = IMG_RE.test(p.image_front_small_url || "") ? p.image_front_small_url : null;
+    return { name, brand, quantity, tags: p.categories_tags || [], kind, img };
   }
   return null;
 }
