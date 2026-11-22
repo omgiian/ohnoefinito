@@ -47,6 +47,28 @@ service cloud.firestore {
         && shortText(d, 'note', 120);
     }
 
+    function validMember() {
+      let d = request.resource.data;
+      return d.keys().hasOnly(['name', 'avatar', 'color', 'joinedAt', 'lastSeen'])
+        && d.name is string && d.name.size() > 0 && d.name.size() <= 30
+        && shortText(d, 'avatar', 20)
+        && shortText(d, 'color', 20);
+    }
+
+    // La casa: nome
+    match /households/{code} {
+      allow read: if member(code);
+      allow create, update: if member(code)
+        && request.resource.data.keys().hasOnly(['name', 'createdAt', 'updatedAt'])
+        && shortText(request.resource.data, 'name', 40);
+    }
+
+    // Componenti della casa: ognuno scrive solo il proprio profilo
+    match /households/{code}/members/{uid} {
+      allow read, delete: if member(code);
+      allow create, update: if member(code) && request.auth.uid == uid && validMember();
+    }
+
     // Lista della spesa condivisa "Casa"
     match /households/{code}/items/{itemId} {
       allow read, delete: if member(code);

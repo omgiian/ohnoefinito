@@ -4,6 +4,7 @@ import {
   initializeFirestore, persistentLocalCache, persistentMultipleTabManager, memoryLocalCache,
   collection, doc, setDoc, updateDoc, deleteDoc, getDoc, onSnapshot, increment,
 } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+import { AVATARS, AVATAR_COLORS, avatarSvg, randomAvatar } from "./avatars.js";
 
 const firebaseConfig = {
   apiKey: "AIzaSyBlEXrtxHlq5NIEuqpiGZbquUzWvPMcOiE",
@@ -89,7 +90,17 @@ const state = {
   pending: false,
   uid: null, code: store.get("onf-code"), me: store.get("onf-name") || "",
   problems: { shop: null, pantry: null }, justCreated: false,
+  look: loadLook(), members: [], house: null,
 };
+function loadLook() {
+  try {
+    const l = JSON.parse(store.get("onf-look") || "null");
+    if (l && AVATARS.some(a => a.id === l.avatar) && AVATAR_COLORS.some(c => c.id === l.color)) return l;
+  } catch (_) {}
+  const l = randomAvatar();
+  store.set("onf-look", JSON.stringify(l));
+  return l;
+}
 let unsubs = [], pendingDel = null, toastTimer = null, undoFn = null, refreshing = false, serverWaiters = [];
 
 // codice di casa arrivato da un link d'invito (#casa=XXXX-XXXX-XXXX-XXXX)
@@ -190,6 +201,56 @@ function startLists() {
   state.server = { casa: false, mio: false, pantry: false };
   state.problems = { shop: null, pantry: null };
   subscribe("casa"); subscribe("mio"); subscribe("pantry");
+  subscribeHouse();
+  syncMe();
+}
+
+// ---------- casa e componenti ----------
+function subscribeHouse() {
+  unsubs.push(onSnapshot(collection(fs, "households", state.code, "members"), snap => {
+    state.members = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    if (state.view === "settings") renderMembers();
+    renderData();
+  }, err => console.warn("members", err)));
+  unsubs.push(onSnapshot(doc(fs, "households", state.code), snap => {
+    state.house = snap.exists() ? snap.data() : null;
+    updateHouseName();
+  }, err => console.warn("house", err)));
+}
+/** Salva nome e avatar di questo telefono tra i componenti della casa. */
+function syncMe() {
+  if (!state.uid || !state.code || !state.me) return;
+  const joinedKey = "onf-joined-" + state.code;
+  const data = { name: state.me, avatar: state.look.avatar, color: state.look.color, lastSeen: Date.now() };
+  if (!store.get(joinedKey)) data.joinedAt = Date.now();
+  setDoc(doc(fs, "households", state.code, "members", state.uid), data, { merge: true })
+    .then(() => { if (data.joinedAt) store.set(joinedKey, "1"); })
+    .catch(e => console.warn("member", e));
+}
+let syncTimer = null;
+const syncMeSoon = () => { clearTimeout(syncTimer); syncTimer = setTimeout(syncMe, 700); };
+const memberById = id => state.members.find(m => m.id === id);
+function personName(uid, fallback) {
+  if (uid && uid === state.uid) return "te";
+  return memberById(uid)?.name || fallback || "qualcuno";
+}
+function lookOf(uid) {
+  if (uid && uid === state.uid) return state.look;
+  const m = memberById(uid);
+  return m && m.avatar ? { avatar: m.avatar, color: m.color } : null;
+}
+function miniAvatar(uid) {
+  const l = lookOf(uid);
+  return l ? `<span class="mini-av">${avatarSvg(l.avatar, l.color)}</span>` : "";
+}
+function houseName() { return (state.house && state.house.name) || "La nostra casa"; }
+function updateHouseName() {
+  $("tagline").textContent = state.house && state.house.name ? state.house.name : "la spesa di casa nostra";
+  const inp = document.getElementById("house-name");
+  if (inp && document.activeElement !== inp) inp.value = state.house?.name || "";
+}
+function updateMeButton() {
+  $("settings-btn").innerHTML = avatarSvg(state.look.avatar, state.look.color);
 }
 function checkServerWaiters() {
   if (state.server.casa && state.server.mio && state.server.pantry) { serverWaiters.forEach(f => f(true)); serverWaiters = []; }
@@ -412,7 +473,7 @@ function renderShop() {
     `<button type="button" data-f="${c.id}" data-c="${c.id}" aria-pressed="${state.filter === c.id}">${c.id !== "all" ? `<span class="dot"></span>` : ""}${c.label}${c.id !== "all" ? ` · ${counts[c.id] || 0}` : ""}</button>`).join("");
 
   const showWho = list === "casa";
-  const who = (uid, name) => uid && uid === state.uid ? "te" : (name || "qualcuno");
+  const who = (uid, name) => personName(uid, name);
   const parts = [];
   if (state.problems.shop) parts.push(`<div class="notice error">${esc(state.problems.shop)}</div>`);
   if (!state.loaded[list]) {
@@ -425,7 +486,7 @@ function renderShop() {
   const home = items.filter(i => i.status === "ok" && match(i)).sort((a, b) => (b.boughtAt || 0) - (a.boughtAt || 0));
   const outN = need.filter(i => i.status === "out").length, lowN = need.length - outN;
 
-  let sec = `<section><h2 class="section-title">Da comprare <small>${need.length ? `${outN} finiti · ${lowN} in esaurimento` : ""}</small></h2>`;
+  let sec = `<section><h2 class="section-title">Da comprare <small>${need.length ? `${outN} ${outN === 1 ? "finito" : "finiti"} · ${lowN} in esaurimento` : ""}</small></h2>`;
   if (!need.length) {
     sec += items.length
       ? `<div class="empty"><strong>Non manca niente</strong>${state.filter === "all" ? "Quando qualcosa finisce, scrivilo qui sopra o toccalo tra le cose in casa." : "Niente da comprare in questa categoria."}</div>`
@@ -438,7 +499,7 @@ function renderShop() {
       for (const i of g) {
         const meta = [];
         if (i.note) meta.push(`<span>${esc(i.note)}</span>`);
-        if (showWho) meta.push(`<span>segnato da <b>${esc(who(i.byUid, i.byName))}</b> ${ago(i.at)}</span>`);
+        if (showWho) meta.push(`<span>segnato da ${miniAvatar(i.byUid)}<b>${esc(who(i.byUid, i.byName))}</b> ${ago(i.at)}</span>`);
         else if (i.at) meta.push(`<span>${ago(i.at)}</span>`);
         if (i.pantryId) meta.push(`<span>dalla dispensa</span>`);
         const del = pendingDel === i.id
@@ -711,7 +772,7 @@ function closeSheet() {
 // AVVIO, CONDIVISIONE, NAVIGAZIONE
 // ======================================================================
 $("refresh-btn").innerHTML = I.refresh;
-$("settings-btn").innerHTML = I.share;
+updateMeButton();
 $("ptr-icon").innerHTML = I.arrow;
 $("tab-ico-spesa").innerHTML = I.cart;
 $("tab-ico-dispensa").innerHTML = I.shelf;
@@ -722,20 +783,47 @@ document.querySelectorAll("#tabbar [data-tab]").forEach(b => b.addEventListener(
 }));
 $("settings-btn").addEventListener("click", () => { state.view = state.view === "settings" ? "app" : "settings"; render(); });
 
+function pickerHtml() {
+  return `<div class="av-grid" role="radiogroup" aria-label="Avatar">${AVATARS.map(a =>
+      `<button type="button" class="av-opt" data-av="${a.id}" role="radio" aria-checked="${state.look.avatar === a.id}" aria-label="${a.label}">${avatarSvg(a.id, state.look.color)}</button>`).join("")}</div>
+    <div class="swatches" role="radiogroup" aria-label="Colore di sfondo">${AVATAR_COLORS.map(c =>
+      `<button type="button" class="sw" data-col="${c.id}" role="radio" aria-checked="${state.look.color === c.id}" aria-label="${c.label}" style="background:${c.value}"></button>`).join("")}</div>`;
+}
+function bindPicker(root) {
+  if (root.dataset.picker) return;
+  root.dataset.picker = "1";
+  root.addEventListener("click", e => {
+    const a = e.target.closest("[data-av]"), c = e.target.closest("[data-col]");
+    if (!a && !c) return;
+    if (a) state.look.avatar = a.dataset.av;
+    if (c) state.look.color = c.dataset.col;
+    store.set("onf-look", JSON.stringify(state.look));
+    root.querySelector(".av-picker").innerHTML = pickerHtml();
+    const big = root.querySelector(".big-av");
+    if (big) big.innerHTML = avatarSvg(state.look.avatar, state.look.color);
+    updateMeButton();
+    if (state.view === "settings") renderMembers();
+    syncMeSoon();
+  });
+}
+
 function renderSetup() {
   $("view-setup").innerHTML = `
     <div class="panel">
       <h2>Benvenuto</h2>
-      <p>Segnate qui cosa finisce in casa e cosa c’è in dispensa. Una persona crea la lista, l’altra entra con il codice.</p>
-      <div class="field"><label for="setup-name">Come ti chiami?</label>
-        <input id="setup-name" type="text" maxlength="30" placeholder="es. Giulia" value="${esc(state.me)}" autocomplete="given-name"></div>
-      <button class="btn" id="setup-create" type="button">Crea una nuova lista di casa</button>
+      <p>Segnate qui cosa finisce in casa e cosa c’è in dispensa. Una persona crea la casa, l’altra entra con il codice.</p>
+      <div class="profile-head"><span class="big-av">${avatarSvg(state.look.avatar, state.look.color)}</span>
+        <div class="field" style="flex:1"><label for="setup-name">Come ti chiami?</label>
+        <input id="setup-name" type="text" maxlength="30" placeholder="es. Giulia" value="${esc(state.me)}" autocomplete="given-name"></div></div>
+      <div class="field"><span class="lbl">Scegli il tuo avatar</span><div class="av-picker">${pickerHtml()}</div></div>
+      <button class="btn" id="setup-create" type="button">Crea una nuova casa</button>
       <div class="or">oppure</div>
       <div class="field"><label for="setup-code">Hai ricevuto un codice o un link?</label>
         <input id="setup-code" type="text" placeholder="XXXX-XXXX-XXXX-XXXX" value="${esc(state.code || "")}" autocapitalize="characters" autocomplete="off" spellcheck="false"></div>
-      <button class="btn soft" id="setup-join" type="button">Entra nella lista</button>
+      <button class="btn soft" id="setup-join" type="button">Entra nella casa</button>
       <p id="setup-err" class="notice error" hidden></p>
     </div>`;
+  bindPicker($("view-setup"));
   const err = t => { $("setup-err").textContent = t; $("setup-err").hidden = false; };
   const saveName = () => {
     const n = $("setup-name").value.trim();
@@ -745,6 +833,7 @@ function renderSetup() {
   $("setup-create").addEventListener("click", () => {
     if (!saveName()) return;
     state.code = newCode(); store.set("onf-code", state.code);
+    setDoc(doc(fs, "households", state.code), { createdAt: Date.now() }, { merge: true }).catch(e => console.warn("house", e));
     state.view = "settings"; state.justCreated = true; startLists(); render();
   });
   $("setup-join").addEventListener("click", () => {
@@ -756,29 +845,77 @@ function renderSetup() {
   });
 }
 
+function activeLabel(ts) {
+  if (!ts) return "";
+  const d0 = new Date(); d0.setHours(0, 0, 0, 0);
+  const days = Math.floor((d0 - new Date(ts).setHours(0, 0, 0, 0)) / 86400000);
+  if (days <= 0) return "attivo oggi";
+  if (days === 1) return "attivo ieri";
+  return `attivo ${days} giorni fa`;
+}
+let pendingRemove = null;
+function renderMembers() {
+  const el = document.getElementById("members-list");
+  if (!el) return;
+  const list = [...state.members];
+  if (!list.some(m => m.id === state.uid)) list.push({ id: state.uid, name: state.me, ...state.look, lastSeen: Date.now() });
+  list.sort((a, b) => (b.id === state.uid) - (a.id === state.uid) || (a.joinedAt || 0) - (b.joinedAt || 0));
+  el.innerHTML = list.map(m => {
+    const me = m.id === state.uid;
+    const look = me ? state.look : m;
+    const name = me ? state.me : (m.name || "Senza nome");
+    const action = me ? "" : pendingRemove === m.id
+      ? `<button class="confirm-del" data-remove-yes="${esc(m.id)}">Rimuovi</button>`
+      : `<button class="icon-btn" data-remove="${esc(m.id)}" aria-label="Rimuovi ${esc(name)} dall’elenco">${I.trash}</button>`;
+    return `<div class="member"><span class="m-av">${avatarSvg(look.avatar, look.color)}</span>
+      <div class="m-body"><div class="m-name">${esc(name)}${me ? `<span class="you">tu</span>` : ""}</div>
+      <div class="m-meta">${me ? "questo telefono" : activeLabel(m.lastSeen)}</div></div>${action}</div>`;
+  }).join("");
+  const n = list.length;
+  $("members-count").textContent = n === 1 ? "1 persona" : `${n} persone`;
+  $("invite-hint").hidden = n > 1;
+}
+
 function renderSettings() {
   $("view-settings").innerHTML = `
+    ${state.justCreated ? `<div class="notice">Casa creata! Ora invita l’altra persona con il link qui sotto.</div>` : ""}
+    <div class="panel" id="profile-panel">
+      <h2>Il tuo profilo</h2>
+      <div class="profile-head"><span class="big-av">${avatarSvg(state.look.avatar, state.look.color)}</span>
+        <div class="field" style="flex:1"><label for="set-name">Nome</label>
+        <input id="set-name" type="text" maxlength="30" value="${esc(state.me)}" autocomplete="given-name"></div></div>
+      <div class="field"><span class="lbl">Avatar</span><div class="av-picker">${pickerHtml()}</div></div>
+    </div>
+
     <div class="panel">
-      <h2>${state.justCreated ? "Lista creata!" : "Condividi e impostazioni"}</h2>
-      <p>Per usare l’app in due, manda questo link all’altra persona. Chi ha il codice può leggere e modificare la lista “Casa” e la dispensa, quindi tenetelo tra voi.</p>
+      <div class="field"><label for="house-name">Nome della casa</label>
+        <input id="house-name" type="text" maxlength="40" placeholder="La nostra casa" value="${esc(state.house?.name || "")}"></div>
+      <div class="section-title" style="margin:4px 0 0"><span>Chi c’è</span><small id="members-count"></small></div>
+      <div class="members" id="members-list"></div>
+      <p id="invite-hint" style="font-size:13.5px">Per ora ci sei solo tu. Invita l’altra persona qui sotto.</p>
+    </div>
+
+    <div class="panel">
+      <h3>Invita in casa</h3>
+      <p>Manda questo link all’altra persona. Chi ha il codice può vedere e modificare la lista “Casa” e la dispensa, quindi tenetelo tra voi.</p>
       <div class="code" id="invite-code">${esc(state.code)}</div>
       <div class="row">
         <button class="btn grow" id="copy-link" type="button">Copia link d’invito</button>
         <button class="btn soft grow" id="share-link" type="button" ${navigator.share ? "" : "hidden"}>Condividi…</button>
       </div>
-      <p style="font-size:13px">Sull’iPhone dell’altra persona:</p>
       <ol class="steps">
         <li>Apre il link in Safari e tocca Condividi → <b>Aggiungi alla schermata Home</b>.</li>
-        <li>Apre l’app dall’icona e, se lo chiede, incolla il codice qui sopra.</li>
+        <li>Apre l’app dall’icona e, se lo chiede, incolla il codice.</li>
       </ol>
-      <div class="field"><label for="set-name">Il tuo nome</label>
-        <input id="set-name" type="text" maxlength="30" value="${esc(state.me)}"></div>
-      <div class="row">
-        <button class="btn grow" id="settings-done" type="button">Torna alla lista</button>
-        <button class="btn danger grow" id="leave" type="button">Esci da questa casa</button>
-      </div>
-      <p id="leave-confirm" hidden style="font-size:13px">Uscendo, su questo telefono non vedrai più lista e dispensa di casa finché non reinserisci il codice. I dati restano salvati per l’altra persona. <button class="confirm-del" id="leave-yes" type="button">Esci</button></p>
-    </div>`;
+    </div>
+
+    <div class="row">
+      <button class="btn grow" id="settings-done" type="button">Torna alla lista</button>
+      <button class="btn danger grow" id="leave" type="button">Esci da questa casa</button>
+    </div>
+    <p id="leave-confirm" class="notice error" hidden>Uscendo, su questo telefono non vedrai più lista e dispensa di casa finché non reinserisci il codice. I dati restano salvati per gli altri. <button class="confirm-del" id="leave-yes" type="button">Esci</button></p>`;
+  renderMembers();
+  bindPicker($("profile-panel"));
   $("copy-link").addEventListener("click", () => {
     const link = inviteLink();
     const fallback = () => {
@@ -789,17 +926,39 @@ function renderSettings() {
     else fallback();
   });
   $("share-link").addEventListener("click", () => {
-    navigator.share({ title: "Oh no, è finito!", text: "Entra nella nostra lista di casa:", url: inviteLink() }).catch(() => {});
+    navigator.share({ title: "Oh no, è finito!", text: `Entra in “${houseName()}” su Oh no, è finito!`, url: inviteLink() }).catch(() => {});
   });
   $("set-name").addEventListener("change", e => {
-    const n = e.target.value.trim(); if (n) { state.me = n; store.set("onf-name", n); showToast("Nome salvato"); }
+    const n = e.target.value.trim();
+    if (!n) { e.target.value = state.me; return; }
+    state.me = n; store.set("onf-name", n); syncMe(); renderMembers(); showToast("Nome salvato");
+  });
+  $("house-name").addEventListener("change", e => {
+    const n = e.target.value.trim().slice(0, 40);
+    setDoc(doc(fs, "households", state.code), { name: n, updatedAt: Date.now() }, { merge: true })
+      .then(() => showToast(n ? "Nome della casa salvato" : "Nome della casa tolto"))
+      .catch(err => { console.warn(err); showToast("Non riesco a salvare: aggiorna le regole di Firestore (vedi README)"); });
+  });
+  $("members-list").addEventListener("click", e => {
+    const r = e.target.closest("[data-remove]"), y = e.target.closest("[data-remove-yes]");
+    if (r) {
+      pendingRemove = r.dataset.remove; renderMembers();
+      setTimeout(() => { if (pendingRemove === r.dataset.remove) { pendingRemove = null; renderMembers(); } }, 3500);
+    } else if (y) {
+      pendingRemove = null;
+      deleteDoc(doc(fs, "households", state.code, "members", y.dataset.removeYes)).catch(err => console.warn(err));
+      showToast("Rimosso dall’elenco. Con il codice potrà sempre rientrare.");
+    }
   });
   $("settings-done").addEventListener("click", () => { state.justCreated = false; state.view = "app"; render(); });
   $("leave").addEventListener("click", () => { $("leave-confirm").hidden = false; });
   $("leave-yes").addEventListener("click", () => {
+    deleteDoc(doc(fs, "households", state.code, "members", state.uid)).catch(() => {});
+    store.set("onf-joined-" + state.code, null);
     unsubs.forEach(u => u()); unsubs = [];
     state.code = null; store.set("onf-code", null);
     state.data = { casa: [], mio: [], pantry: [] }; state.loaded = { casa: false, mio: false, pantry: false };
+    state.members = []; state.house = null; updateHouseName();
     state.view = "setup"; render();
   });
 }
