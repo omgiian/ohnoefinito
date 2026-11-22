@@ -1,0 +1,556 @@
+<title>Oh no, è finito!</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&family=Inter:wght@400;500;600&display=swap">
+<style>
+/* Layout: one narrow column, like a list on the fridge door. Sticky header with
+   the two lists (shared "Casa" and private "Solo mio"), add bar, then what's
+   missing grouped by aisle, and below it what's back in the house. */
+:root {
+  --bg: #eef2ee;
+  --surface: #ffffff;
+  --line: #d9e0da;
+  --ink: #18221c;
+  --muted: #5d6b62;
+  --accent: #1e6a49;
+  --accent-ink: #ffffff;
+  --accent-soft: #dcece3;
+  --out: #c8402f;
+  --out-soft: #f8e1dc;
+  --low: #a86f00;
+  --low-soft: #f6ebd2;
+  --focus: #2f7fd1;
+  --font-display: "Bricolage Grotesque", "Avenir Next", "Segoe UI", system-ui, sans-serif;
+  --font-body: "Inter", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --radius: 14px;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #111613; --surface: #1a211d; --line: #2b352f; --ink: #e8eee9; --muted: #98a69d;
+    --accent: #5cc493; --accent-ink: #0d1a13; --accent-soft: #1f3a2c;
+    --out: #f07a68; --out-soft: #3d221e; --low: #e2b04a; --low-soft: #3a2f17; --focus: #7db4ee;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #111613; --surface: #1a211d; --line: #2b352f; --ink: #e8eee9; --muted: #98a69d;
+  --accent: #5cc493; --accent-ink: #0d1a13; --accent-soft: #1f3a2c;
+  --out: #f07a68; --out-soft: #3d221e; --low: #e2b04a; --low-soft: #3a2f17; --focus: #7db4ee;
+  color-scheme: dark;
+}
+
+* { box-sizing: border-box; }
+body {
+  background: var(--bg); color: var(--ink);
+  font-family: var(--font-body); font-size: 15px; line-height: 1.45;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+}
+body::before { content: ""; position: fixed; inset: 0 0 auto; height: env(safe-area-inset-top, 0px); z-index: 10; background: var(--bg); }
+button, input, select { font: inherit; color: inherit; }
+button { cursor: pointer; }
+:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+.wrap { max-width: 640px; margin: 0 auto; padding-block: 0 64px; }
+
+header {
+  position: sticky; top: env(safe-area-inset-top, 0px); z-index: 5;
+  background: var(--bg); padding-block: 18px 12px;
+  display: grid; gap: 14px;
+}
+.brand { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+h1 {
+  font-family: var(--font-display); font-weight: 800; font-size: 1.9rem; line-height: 1;
+  letter-spacing: -0.02em; margin: 0; text-wrap: balance;
+}
+h1 em { font-style: normal; color: var(--out); }
+.sync { font-size: 12px; color: var(--muted); display: flex; align-items: center; gap: 6px; }
+.sync i { width: 8px; height: 8px; border-radius: 50%; background: var(--muted); display: inline-block; }
+.sync[data-state="live"] i { background: var(--accent); }
+.sync[data-state="error"] i { background: var(--out); }
+
+.tabs { display: grid; grid-template-columns: 1fr 1fr; gap: 4px; background: var(--line); padding: 4px; border-radius: 12px; }
+.tab {
+  border: 0; background: transparent; border-radius: 9px; padding: 9px 10px;
+  font-weight: 600; display: flex; justify-content: center; align-items: center; gap: 8px;
+}
+.tab[aria-selected="true"] { background: var(--surface); box-shadow: 0 1px 2px rgb(0 0 0 / .08); }
+.tab small { font-weight: 600; font-size: 12px; min-width: 22px; padding: 1px 7px; border-radius: 99px; background: var(--out-soft); color: var(--out); font-variant-numeric: tabular-nums; }
+.tab small[data-zero] { background: transparent; color: var(--muted); }
+.tab-hint { font-size: 12.5px; color: var(--muted); margin: -4px 2px 0; }
+
+form.add {
+  display: grid; grid-template-columns: 1fr auto; gap: 8px;
+  background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); padding: 8px;
+}
+form.add input[type="text"] {
+  border: 0; background: transparent; padding: 8px 6px; font-size: 16px; min-width: 0; outline-offset: 0;
+}
+form.add .opts { grid-column: 1 / -1; display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+select, .seg button {
+  border: 1px solid var(--line); background: var(--bg); border-radius: 99px; padding: 6px 12px; font-size: 13.5px;
+}
+.seg { display: inline-flex; gap: 4px; }
+.seg button[aria-pressed="true"][data-v="out"] { background: var(--out-soft); color: var(--out); border-color: transparent; font-weight: 600; }
+.seg button[aria-pressed="true"][data-v="low"] { background: var(--low-soft); color: var(--low); border-color: transparent; font-weight: 600; }
+.btn-add {
+  border: 0; background: var(--accent); color: var(--accent-ink); font-weight: 600;
+  border-radius: 10px; padding: 0 16px; min-height: 40px;
+}
+.btn-add:disabled { opacity: .5; cursor: default; }
+.note-in { flex: 1 1 140px; min-width: 0; border: 1px solid var(--line); background: var(--bg); border-radius: 99px; padding: 6px 12px; font-size: 13.5px; }
+
+.filters { display: flex; gap: 6px; overflow-x: auto; padding-bottom: 2px; scrollbar-width: none; }
+.filters button {
+  flex: none; border: 1px solid var(--line); background: transparent; border-radius: 99px; padding: 5px 12px; font-size: 13px; color: var(--muted);
+}
+.filters button[aria-pressed="true"] { background: var(--ink); color: var(--bg); border-color: var(--ink); }
+
+main { display: grid; gap: 22px; margin-top: 8px; }
+.notice { background: var(--low-soft); color: var(--ink); border-radius: var(--radius); padding: 12px 14px; font-size: 14px; }
+.notice[data-kind="error"] { background: var(--out-soft); }
+
+.section-title {
+  display: flex; justify-content: space-between; align-items: baseline; gap: 8px;
+  font-family: var(--font-display); font-weight: 600; font-size: 1.15rem; margin: 0 2px 8px;
+}
+.section-title span { font-family: var(--font-body); font-size: 13px; color: var(--muted); font-weight: 500; }
+
+.group { display: grid; gap: 6px; }
+.group + .group { margin-top: 14px; }
+.group h3 {
+  margin: 0 2px; font-size: 11.5px; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); font-weight: 600;
+  display: flex; align-items: center; gap: 7px;
+}
+.dot { width: 9px; height: 9px; border-radius: 3px; flex: none; }
+
+.item {
+  display: grid; grid-template-columns: auto 1fr auto; gap: 12px; align-items: center;
+  background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); padding: 10px 10px 10px 12px;
+}
+.check {
+  width: 30px; height: 30px; border-radius: 50%; border: 2px solid var(--line); background: transparent;
+  display: grid; place-items: center; padding: 0; transition: background .15s, border-color .15s;
+}
+.check svg { width: 16px; height: 16px; opacity: 0; transition: opacity .15s; }
+.check:hover { border-color: var(--accent); }
+.check:hover svg { opacity: .4; }
+.item.done-anim .check { background: var(--accent); border-color: var(--accent); }
+.item.done-anim .check svg { opacity: 1; color: var(--accent-ink); }
+.body { min-width: 0; }
+.name { font-weight: 600; overflow-wrap: anywhere; }
+.meta { font-size: 12.5px; color: var(--muted); overflow-wrap: anywhere; }
+.meta .n { color: var(--ink); }
+.right { display: flex; align-items: center; gap: 4px; }
+.pill {
+  border: 0; border-radius: 99px; padding: 4px 10px; font-size: 12px; font-weight: 600; white-space: nowrap;
+}
+.pill[data-s="out"] { background: var(--out-soft); color: var(--out); }
+.pill[data-s="low"] { background: var(--low-soft); color: var(--low); }
+.icon-btn {
+  border: 0; background: transparent; color: var(--muted); width: 32px; height: 32px; border-radius: 8px; display: grid; place-items: center; padding: 0;
+}
+.icon-btn:hover { background: var(--bg); color: var(--ink); }
+.icon-btn svg { width: 17px; height: 17px; }
+.confirm-del { border: 0; background: var(--out); color: #fff; border-radius: 8px; padding: 6px 10px; font-size: 12.5px; font-weight: 600; }
+
+.empty {
+  border: 1.5px dashed var(--line); border-radius: var(--radius); padding: 22px 18px; text-align: center; color: var(--muted);
+}
+.empty strong { display: block; color: var(--ink); font-family: var(--font-display); font-size: 1.1rem; margin-bottom: 4px; }
+
+.home { display: flex; flex-wrap: wrap; gap: 6px; }
+.chip {
+  display: inline-flex; align-items: center; gap: 6px; border: 1px solid var(--line); background: var(--surface);
+  border-radius: 99px; padding: 6px 6px 6px 12px; font-size: 13.5px; max-width: 100%;
+}
+.chip .label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.chip button { border: 0; border-radius: 99px; padding: 3px 9px; font-size: 12px; font-weight: 600; background: var(--out-soft); color: var(--out); }
+.chip button.x { background: transparent; color: var(--muted); padding: 3px 6px; }
+.home-hint { font-size: 12.5px; color: var(--muted); margin: 0 2px 8px; }
+
+.toast {
+  position: fixed; left: 50%; transform: translateX(-50%);
+  bottom: calc(16px + env(safe-area-inset-bottom, 0px));
+  background: var(--ink); color: var(--bg); border-radius: 12px; padding: 10px 12px 10px 16px;
+  display: flex; gap: 12px; align-items: center; font-size: 14px; max-width: calc(100vw - 32px); z-index: 20;
+  box-shadow: 0 6px 24px rgb(0 0 0 / .2);
+}
+.toast button { border: 0; background: transparent; color: var(--accent); font-weight: 600; filter: brightness(1.4); }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .toast button { filter: none; color: var(--accent-ink); background: var(--accent); border-radius: 8px; padding: 4px 10px; } }
+:root[data-theme="dark"] .toast button { filter: none; color: var(--accent-ink); background: var(--accent); border-radius: 8px; padding: 4px 10px; }
+
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+@media (max-width: 420px) {
+  h1 { font-size: 1.6rem; }
+  .pill { padding: 4px 8px; }
+}
+</style>
+
+<div class="wrap">
+  <header>
+    <div class="brand">
+      <h1>Oh no, è <em>finito!</em></h1>
+      <div class="sync" id="sync" data-state="wait"><i></i><span id="sync-text">Collegamento…</span></div>
+    </div>
+    <div class="tabs" role="tablist" aria-label="Liste">
+      <button class="tab" role="tab" id="tab-casa" data-list="casa" aria-selected="true">Casa <small id="count-casa" data-zero>0</small></button>
+      <button class="tab" role="tab" id="tab-mio" data-list="mio" aria-selected="false">Solo mio <small id="count-mio" data-zero>0</small></button>
+    </div>
+    <p class="tab-hint" id="tab-hint">Lista condivisa: la vede e la modifica chiunque abbia accesso a questa pagina.</p>
+    <form class="add" id="add-form" autocomplete="off">
+      <input type="text" id="add-name" placeholder="Cosa è finito? es. detersivo piatti" maxlength="80" aria-label="Nome articolo">
+      <button class="btn-add" id="add-btn" type="submit" disabled>Aggiungi</button>
+      <div class="opts">
+        <select id="add-cat" aria-label="Categoria"></select>
+        <div class="seg" role="group" aria-label="Quanto è urgente">
+          <button type="button" data-v="out" aria-pressed="true">Finito</button>
+          <button type="button" data-v="low" aria-pressed="false">Sta finendo</button>
+        </div>
+        <input type="text" class="note-in" id="add-note" placeholder="Nota (marca, quantità…)" maxlength="80" aria-label="Nota">
+      </div>
+    </form>
+    <div class="filters" id="filters" role="group" aria-label="Filtra per categoria"></div>
+  </header>
+
+  <main id="main">
+    <div class="empty" id="boot"><strong>Sto caricando la lista</strong>Tra un attimo vedi cosa manca in casa. Puoi già scrivere qui sopra il primo articolo.</div>
+  </main>
+</div>
+<div class="toast" id="toast" hidden><span id="toast-text"></span><button type="button" id="toast-undo">Annulla</button></div>
+
+<script>
+(() => {
+  const CATS = [
+    { id: "cibo", label: "Cibo", color: "#d98a2b" },
+    { id: "frigo", label: "Frigo e freschi", color: "#3f9bc9" },
+    { id: "bevande", label: "Bevande", color: "#8a6fd1" },
+    { id: "pulizia", label: "Pulizia casa", color: "#2fa37a" },
+    { id: "igiene", label: "Bagno e igiene", color: "#d4609a" },
+    { id: "altro", label: "Altro", color: "#8b958e" },
+  ];
+  const catById = Object.fromEntries(CATS.map(c => [c.id, c]));
+  const GUESS = [
+    [/sapon|shampoo|bagnoschiuma|dentifric|spazzolin|carta igien|deodor|assorbent|rasoi|cotton|crema|balsamo/i, "igiene"],
+    [/detersiv|candeggin|sgrassat|anticalcare|spugn|pattumier|sacchett|ammorbid|lavastovigl|lavatric|pavimenti|scottex|carta cucina|vetri|brillantante/i, "pulizia"],
+    [/latte|yogurt|burro|formagg|mozzarell|uova|prosciutt|insalat|verdur|frutta|carne|pollo|pesce|panna/i, "frigo"],
+    [/acqua|vino|birra|succo|caff[eè]|t[eè]\b|bibit|coca/i, "bevande"],
+    [/pasta|riso|pane|farina|zucchero|sale|olio|aceto|biscott|cereali|pelati|passata|legumi|tonno|crackers|merend/i, "cibo"],
+  ];
+
+  const $ = id => document.getElementById(id);
+  const state = {
+    list: "casa", filter: "all", status: "out",
+    items: { casa: [], mio: [] },
+    loaded: { casa: false, mio: false },
+    db: null, user: null, uid: null, readOnly: false, problem: null,
+  };
+  let pendingDel = null, toastTimer = null, undoFn = null, renderToken = 0;
+
+  // ---------- setup controls ----------
+  $("add-cat").innerHTML = CATS.map(c => `<option value="${c.id}">${c.label}</option>`).join("");
+  let catTouched = false;
+  $("add-cat").addEventListener("change", () => { catTouched = true; });
+  $("add-name").addEventListener("input", e => {
+    const v = e.target.value.trim();
+    $("add-btn").disabled = !v || !state.db || state.readOnly;
+    if (!catTouched) {
+      const g = GUESS.find(([re]) => re.test(v));
+      $("add-cat").value = g ? g[1] : (v ? $("add-cat").value : "cibo");
+    }
+  });
+  document.querySelectorAll(".seg button").forEach(b => b.addEventListener("click", () => {
+    state.status = b.dataset.v;
+    document.querySelectorAll(".seg button").forEach(x => x.setAttribute("aria-pressed", String(x === b)));
+  }));
+  document.querySelectorAll(".tab").forEach(t => t.addEventListener("click", () => {
+    state.list = t.dataset.list;
+    try { localStorage.setItem("onf-tab", state.list); } catch (_) {}
+    render();
+  }));
+  try { const t = localStorage.getItem("onf-tab"); if (t === "casa" || t === "mio") state.list = t; } catch (_) {}
+
+  function renderFilters() {
+    const items = state.items[state.list];
+    const counts = {};
+    items.forEach(i => { if (i.status !== "ok") counts[i.cat] = (counts[i.cat] || 0) + 1; });
+    const opts = [{ id: "all", label: "Tutto" }, ...CATS.filter(c => counts[c.id] || state.filter === c.id)];
+    $("filters").innerHTML = opts.map(c =>
+      `<button type="button" data-f="${c.id}" aria-pressed="${state.filter === c.id}">${c.label}${c.id !== "all" ? ` · ${counts[c.id] || 0}` : ""}</button>`
+    ).join("");
+    $("filters").hidden = opts.length < 3;
+    $("filters").querySelectorAll("button").forEach(b => b.addEventListener("click", () => {
+      state.filter = state.filter === b.dataset.f ? "all" : b.dataset.f; render();
+    }));
+  }
+
+  // ---------- helpers ----------
+  const esc = s => String(s ?? "").replace(/[&<>"']/g, ch => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[ch]));
+  function ago(ts) {
+    if (!ts) return "";
+    const s = Math.max(0, (Date.now() - ts) / 1000);
+    if (s < 60) return "adesso";
+    if (s < 3600) return `${Math.floor(s / 60)} min fa`;
+    if (s < 86400) return `${Math.floor(s / 3600)} h fa`;
+    const d = Math.floor(s / 86400);
+    if (d === 1) return "ieri";
+    if (d < 7) return `${d} giorni fa`;
+    return new Date(ts).toLocaleDateString("it-IT", { day: "numeric", month: "short" });
+  }
+  const norm = s => s.trim().toLocaleLowerCase("it-IT").replace(/\s+/g, " ");
+  function colFor(list) {
+    return list === "casa" ? state.db.collection("items") : state.db.collection("data/users/" + state.uid);
+  }
+  async function write(list, id, data, isNew) {
+    const ref = colFor(list).doc(id);
+    try {
+      if (isNew) await ref.set(data); else await ref.update(data);
+    } catch (e) {
+      handleWriteError(e);
+      throw e;
+    }
+  }
+  function handleWriteError(e) {
+    if (e && e.code === "invalid_argument") {
+      state.readOnly = true;
+      state.problem = "Puoi vedere la lista ma non modificarla. Chiedi a chi l’ha condivisa di darti accesso come Collaboratore o Editor.";
+    } else if (e && e.code === "quota_exceeded") {
+      state.problem = "La lista è piena. Elimina qualche articolo che non compri più e riprova.";
+    } else {
+      state.problem = "Non sono riuscito a salvare. Controlla la connessione e riprova.";
+    }
+    render();
+  }
+  function showToast(text, undo) {
+    $("toast-text").textContent = text;
+    undoFn = undo || null;
+    $("toast-undo").hidden = !undo;
+    $("toast").hidden = false;
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => { $("toast").hidden = true; undoFn = null; }, 5000);
+  }
+  $("toast-undo").addEventListener("click", () => { const f = undoFn; $("toast").hidden = true; undoFn = null; if (f) f(); });
+
+  // ---------- actions ----------
+  $("add-form").addEventListener("submit", async e => {
+    e.preventDefault();
+    if (!state.db || state.readOnly) return;
+    const name = $("add-name").value.trim().replace(/\s+/g, " ");
+    if (!name) return;
+    const note = $("add-note").value.trim();
+    const cat = $("add-cat").value;
+    const list = state.list;
+    if (list === "mio" && !state.uid) return;
+    const existing = state.items[list].find(i => norm(i.name) === norm(name));
+    $("add-name").value = ""; $("add-note").value = ""; $("add-btn").disabled = true; catTouched = false;
+    $("add-name").focus();
+    try {
+      if (existing) {
+        await write(list, existing.id, { status: state.status, cat, note: note || existing.note || "", by: state.uid, at: Date.now(), boughtBy: null, boughtAt: null });
+        showToast(existing.status === "ok" ? `“${existing.name}” è di nuovo in lista` : `“${existing.name}” era già in lista: aggiornato`);
+      } else {
+        const id = colFor(list).doc().id;
+        await write(list, id, { name, cat, note, status: state.status, by: state.uid, at: Date.now(), boughtBy: null, boughtAt: null }, true);
+      }
+    } catch (_) {}
+  });
+
+  async function markBought(list, item, rowEl) {
+    if (rowEl) rowEl.classList.add("done-anim");
+    const prev = { status: item.status, boughtBy: item.boughtBy || null, boughtAt: item.boughtAt || null };
+    try {
+      await write(list, item.id, { status: "ok", boughtBy: state.uid, boughtAt: Date.now() });
+      showToast(`Preso: ${item.name}`, () => write(list, item.id, prev).catch(() => {}));
+    } catch (_) { if (rowEl) rowEl.classList.remove("done-anim"); }
+  }
+  function toggleUrgency(list, item) {
+    write(list, item.id, { status: item.status === "out" ? "low" : "out" }).catch(() => {});
+  }
+  function reAdd(list, item, status = "out") {
+    write(list, item.id, { status, by: state.uid, at: Date.now(), boughtBy: null, boughtAt: null }).catch(() => {});
+  }
+  async function remove(list, item) {
+    const copy = { ...item }; delete copy.id;
+    try {
+      await colFor(list).doc(item.id).delete();
+      showToast(`Eliminato: ${item.name}`, () => write(list, item.id, copy, true).catch(() => {}));
+    } catch (e) { handleWriteError(e); }
+  }
+
+  // ---------- render ----------
+  const ICON_CHECK = `<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M3.5 8.5l3 3 6-7"/></svg>`;
+  const ICON_TRASH = `<svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><path d="M4 6h12M8 6V4.5h4V6M6 6l.7 9.5h6.6L14 6"/></svg>`;
+
+  async function render() {
+    const token = ++renderToken;
+    const list = state.list;
+    document.querySelectorAll(".tab").forEach(t => t.setAttribute("aria-selected", String(t.dataset.list === list)));
+    $("tab-hint").textContent = list === "casa"
+      ? "Lista condivisa: la vede e la modifica chiunque abbia accesso a questa pagina."
+      : "Lista personale: la vedi solo tu, nemmeno chi ha condiviso la pagina può leggerla.";
+    for (const l of ["casa", "mio"]) {
+      const n = state.items[l].filter(i => i.status !== "ok").length;
+      const el = $("count-" + l); el.textContent = n; el.toggleAttribute("data-zero", n === 0);
+    }
+    $("add-name").disabled = !state.db || state.readOnly || (list === "mio" && !state.uid);
+    $("add-btn").disabled = $("add-name").disabled || !$("add-name").value.trim();
+    renderFilters();
+
+    const items = state.items[list];
+    const showWho = list === "casa";
+    let names = {};
+    if (showWho && state.user) {
+      const ids = [...new Set(items.flatMap(i => [i.by, i.boughtBy]).filter(Boolean))];
+      if (ids.length) {
+        try { names = await state.user.profiles(ids); } catch (_) {}
+        if (token !== renderToken) return;
+      }
+    }
+    const who = id => !id ? "" : id === state.uid ? "te" : ((names[id] && names[id].name) || "qualcuno");
+
+    const main = $("main");
+    const parts = [];
+    if (state.problem) parts.push(`<div class="notice" data-kind="error">${esc(state.problem)}</div>`);
+
+    if (list === "mio" && state.db && !state.uid) {
+      parts.push(`<div class="empty"><strong>Lista personale non disponibile</strong>Accedi a claude.ai per avere una lista che vedi solo tu.</div>`);
+      main.innerHTML = parts.join(""); return;
+    }
+    if (!state.loaded[list] && state.db) {
+      parts.push(`<div class="empty"><strong>Sto caricando la lista</strong>Tra un attimo vedi cosa manca in casa.</div>`);
+      main.innerHTML = parts.join(""); return;
+    }
+
+    const match = i => state.filter === "all" || i.cat === state.filter;
+    const need = items.filter(i => i.status !== "ok" && match(i))
+      .sort((a, b) => (a.status === b.status ? 0 : a.status === "out" ? -1 : 1) || (b.at || 0) - (a.at || 0));
+    const home = items.filter(i => i.status === "ok" && match(i))
+      .sort((a, b) => (b.boughtAt || 0) - (a.boughtAt || 0));
+
+    const outN = need.filter(i => i.status === "out").length, lowN = need.length - outN;
+    let sec = `<section aria-labelledby="h-need"><h2 class="section-title" id="h-need">Da comprare <span>${need.length ? `${outN} finiti · ${lowN} in esaurimento` : ""}</span></h2>`;
+    if (!need.length) {
+      sec += items.length
+        ? `<div class="empty"><strong>Non manca niente</strong>${state.filter === "all" ? "Quando qualcosa finisce, scrivilo qui sopra o toccalo tra le cose in casa." : "Niente da comprare in questa categoria."}</div>`
+        : `<div class="empty"><strong>La lista è vuota</strong>Scrivi qui sopra la prima cosa finita, per esempio “carta igienica” o “latte”. ${list === "casa" ? "Chi condivide la pagina con te la vedrà subito." : ""}</div>`;
+    } else {
+      for (const c of CATS) {
+        const g = need.filter(i => (catById[i.cat] ? i.cat : "altro") === c.id);
+        if (!g.length) continue;
+        sec += `<div class="group"><h3><span class="dot" style="background:${c.color}"></span>${c.label}</h3>`;
+        for (const i of g) {
+          const meta = [];
+          if (i.note) meta.push(esc(i.note));
+          if (showWho && i.by) meta.push(`segnato da <span class="n">${esc(who(i.by))}</span> ${ago(i.at)}`);
+          else if (i.at) meta.push(ago(i.at));
+          const del = pendingDel === i.id
+            ? `<button class="confirm-del" data-act="del-yes" data-id="${esc(i.id)}">Elimina</button>`
+            : `<button class="icon-btn" data-act="del" data-id="${esc(i.id)}" aria-label="Elimina ${esc(i.name)}">${ICON_TRASH}</button>`;
+          sec += `<div class="item" data-id="${esc(i.id)}">
+            <button class="check" data-act="buy" data-id="${esc(i.id)}" aria-label="Segna ${esc(i.name)} come comprato" ${state.readOnly ? "disabled" : ""}>${ICON_CHECK}</button>
+            <div class="body"><div class="name">${esc(i.name)}</div>${meta.length ? `<div class="meta">${meta.join(" · ")}</div>` : ""}</div>
+            <div class="right">
+              <button class="pill" data-s="${i.status}" data-act="urg" data-id="${esc(i.id)}" title="Tocca per cambiare" ${state.readOnly ? "disabled" : ""}>${i.status === "out" ? "Finito" : "Sta finendo"}</button>
+              ${state.readOnly ? "" : del}
+            </div></div>`;
+        }
+        sec += `</div>`;
+      }
+    }
+    sec += `</section>`;
+    parts.push(sec);
+
+    if (home.length) {
+      let h = `<section aria-labelledby="h-home"><h2 class="section-title" id="h-home">In casa <span>${home.length}</span></h2>
+        <p class="home-hint">Le cose già comprate restano qui. Quando finiscono di nuovo, tocca “Finito”.</p><div class="home">`;
+      for (const i of home) {
+        const t = showWho && i.boughtBy ? `Preso da ${who(i.boughtBy)} ${ago(i.boughtAt)}` : (i.boughtAt ? `Preso ${ago(i.boughtAt)}` : "");
+        h += `<span class="chip" title="${esc(t)}"><span class="dot" style="background:${(catById[i.cat] || catById.altro).color}"></span><span class="label">${esc(i.name)}</span>`;
+        if (!state.readOnly) {
+          h += pendingDel === i.id
+            ? `<button class="confirm-del" data-act="del-yes" data-id="${esc(i.id)}">Elimina</button>`
+            : `<button data-act="again" data-id="${esc(i.id)}">Finito</button><button class="x" data-act="del" data-id="${esc(i.id)}" aria-label="Elimina ${esc(i.name)}">✕</button>`;
+        }
+        h += `</span>`;
+      }
+      h += `</div></section>`;
+      parts.push(h);
+    }
+    main.innerHTML = parts.join("");
+  }
+
+  $("main").addEventListener("click", e => {
+    const b = e.target.closest("button[data-act]");
+    if (!b) return;
+    const list = state.list;
+    const item = state.items[list].find(i => i.id === b.dataset.id);
+    if (!item) return;
+    const act = b.dataset.act;
+    if (act === "buy") markBought(list, item, b.closest(".item"));
+    else if (act === "urg") toggleUrgency(list, item);
+    else if (act === "again") reAdd(list, item);
+    else if (act === "del") {
+      pendingDel = item.id; render();
+      setTimeout(() => { if (pendingDel === item.id) { pendingDel = null; render(); } }, 3500);
+    } else if (act === "del-yes") { pendingDel = null; remove(list, item); }
+  });
+
+  // refresh relative times
+  setInterval(() => { if (document.visibilityState === "visible") render(); }, 60000);
+
+  // ---------- connect ----------
+  function setSync(s, text) { $("sync").dataset.state = s; $("sync-text").textContent = text; }
+
+  function subscribe(list) {
+    let timer = setTimeout(() => {
+      if (!state.loaded[list]) { setSync("error", "Lista non raggiungibile"); state.problem = "Non riesco a raggiungere la lista. Controlla la connessione: si aggiorna da sola appena torna."; render(); }
+    }, 10000);
+    colFor(list).onSnapshot(snap => {
+      state.items[list] = snap.docs.filter(d => d.exists).map(d => ({ id: d.id, ...d.data() }));
+      if (!snap.metadata.fromCache) {
+        clearTimeout(timer);
+        state.loaded[list] = true;
+        if (state.problem && state.problem.startsWith("Non riesco")) state.problem = null;
+        setSync("live", "Sincronizzato");
+      } else if (!state.loaded[list] && snap.size) {
+        state.loaded[list] = true;
+      }
+      render();
+    }, err => {
+      clearTimeout(timer);
+      state.loaded[list] = true;
+      setSync("error", "Non collegato");
+      if (err.code !== "revoked") state.problem = "La lista si è scollegata. Ricarica la pagina per riprovare.";
+      render();
+    });
+  }
+
+  async function start() {
+    const c = window.claude;
+    if (!c || !c.use) {
+      setSync("error", "Offline");
+      $("boot").innerHTML = "<strong>Apri la pagina da claude.ai</strong>La lista condivisa funziona solo dentro claude.ai, dove viene salvata.";
+      return;
+    }
+    const [db, user] = await Promise.all([c.use("db"), c.use("user")]);
+    if (!db) {
+      setSync("error", "Non disponibile");
+      $("boot").innerHTML = "<strong>Accedi per usare la lista</strong>Per vedere e modificare la lista serve aver effettuato l’accesso a claude.ai con un account che ha accesso a questa pagina.";
+      return;
+    }
+    state.db = db; state.user = user;
+    state.uid = user ? await user.id() : null;
+    if (user) {
+      const can = await user.can("data.write");
+      if (can === false) {
+        state.readOnly = true;
+        state.problem = "Puoi vedere la lista ma non modificarla. Chiedi a chi l’ha condivisa di darti accesso come Collaboratore o Editor.";
+      }
+    }
+    subscribe("casa");
+    if (state.uid) subscribe("mio");
+    render();
+  }
+  start();
+})();
+</script>
