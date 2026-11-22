@@ -1,34 +1,38 @@
 # Oh no, è finito!
 
-Lista condivisa di ciò che è finito in casa (cibo, prodotti per la pulizia, igiene…), da usare in due sull'iPhone come un'app.
+Lista della spesa e dispensa condivise per la casa, da usare in due sull'iPhone come un'app.
 
-- **Casa**: lista condivisa, la vede e la modifica chi ha il *codice di casa*.
-- **Solo mio**: lista personale, visibile solo sul tuo telefono.
+- **Spesa → Casa**: lista condivisa, la vede e la modifica chi ha il *codice di casa*.
+- **Spesa → Solo mio**: lista personale, visibile solo sul tuo telefono.
+- **Dispensa**: cosa c'è in casa, diviso tra Frigo, Freezer, Credenza, Pulizia casa, Bagno e cura. Con quantità, scadenze e avviso per le cose da consumare presto. Quando una quantità arriva a 0, il prodotto va da solo nella lista della spesa; quando lo spunti come comprato, in dispensa torna +1.
+- **Codice a barre**: scansiona con la fotocamera per aggiungere un prodotto. Il nome viene cercato su Open Food Facts, Open Beauty Facts e Open Products Facts; i prodotti che nominate voi vengono ricordati per la volta dopo.
+- **Aggiorna**: tira giù la pagina o tocca il pulsante in alto.
 
 Funziona anche senza rete: le modifiche si sincronizzano quando la connessione torna.
 
-## Come è fatta
+## File
 
-- `index.html`: tutta l'app (HTML, CSS, JS), pubblicata con GitHub Pages.
-- Dati su **Firebase Firestore** (piano gratuito Spark), accesso anonimo con Firebase Auth.
+- `index.html`, `styles.css`, `app.js`: l'app.
+- `scanner.js`: fotocamera e ricerca dei prodotti. Usa `BarcodeDetector` dove c'è, altrimenti [ZXing](https://github.com/zxing-js/library) (`vendor/`, licenza Apache 2.0).
 - `firestore.rules`: regole di sicurezza da incollare nella console Firebase.
-- `manifest.webmanifest`, `sw.js`, icone: per installarla sulla schermata Home e aprirla offline.
+- `manifest.webmanifest`, `sw.js`, icone: installazione sulla schermata Home e uso offline.
 - `claude-artifact.html`: la prima versione, che gira solo dentro claude.ai.
 
-## Configurazione (una volta sola)
+## Configurazione
 
-1. **Firestore → Regole**: incolla il contenuto di `firestore.rules` e premi *Pubblica*.
+1. **Firestore → Regole**: incolla il contenuto di `firestore.rules` e premi *Pubblica*. Va rifatto ogni volta che il file cambia (l'ultima volta: aggiunta della Dispensa).
 2. **Authentication → Metodo di accesso**: *Anonimo* attivo.
-3. **Authentication → Impostazioni → Domini autorizzati**: aggiungi `omgiian.github.io`.
-4. **GitHub → Settings → Pages**: *Deploy from a branch*, ramo `claude/amazing-heisenberg-bpyhd5` (o `main` dopo il merge), cartella `/ (root)`.
+3. **Authentication → Impostazioni → Domini autorizzati**: `omgiian.github.io`.
+4. **GitHub → Settings → Pages**: *Deploy from a branch*, cartella `/ (root)`.
 
-L'app sarà su https://omgiian.github.io/ohnoefinito/
+App: https://omgiian.github.io/ohnoefinito/
 
 ## Uso sugli iPhone
 
 1. Apri il link in **Safari** → Condividi → **Aggiungi alla schermata Home**.
 2. Apri l'app dall'icona, scrivi il tuo nome e tocca **Crea una nuova lista di casa**.
-3. Manda il link d'invito (o il codice) all'altra persona: lei fa lo stesso passo 1, poi **Entra nella lista** con il codice.
+3. Manda il link d'invito all'altra persona: lei fa il passo 1, poi **Entra nella lista** con il codice.
 
-Il codice di casa è l'unica "chiave" della lista condivisa: tienilo tra voi.
-La lista "Solo mio" è legata al telefono: se cancelli l'app o i dati di Safari, va persa.
+La prima volta che scansioni, l'iPhone chiede il permesso per la fotocamera.
+Il codice di casa è l'unica chiave della lista condivisa: tienilo tra voi.
+La lista "Solo mio" è legata al telefono: se cancelli l'app, va persa.

@@ -6,23 +6,66 @@ service cloud.firestore {
       return request.auth != null;
     }
 
+    // Il codice di casa: 16 caratteri casuali, es. ABCD-EFGH-JKLM-NPQR
+    function member(code) {
+      return signedIn() && code.matches('^[A-Z0-9]{4}(-[A-Z0-9]{4}){3}$');
+    }
+
+    function shortText(d, key, max) {
+      return d.get(key, null) == null || (d.get(key, null) is string && d.get(key, '').size() <= max);
+    }
+
     function validItem() {
       let d = request.resource.data;
-      return d.keys().hasOnly(['name', 'cat', 'note', 'status', 'byUid', 'byName', 'at', 'boughtUid', 'boughtName', 'boughtAt'])
+      return d.keys().hasOnly(['name', 'cat', 'note', 'status', 'byUid', 'byName', 'at', 'boughtUid', 'boughtName', 'boughtAt', 'pantryId'])
         && d.name is string && d.name.size() > 0 && d.name.size() <= 80
         && d.status in ['out', 'low', 'ok']
-        && (!('note' in d) || (d.note is string && d.note.size() <= 120))
-        && (!('byName' in d) || d.byName == null || (d.byName is string && d.byName.size() <= 30))
-        && (!('boughtName' in d) || d.boughtName == null || (d.boughtName is string && d.boughtName.size() <= 30));
+        && shortText(d, 'note', 120)
+        && shortText(d, 'byName', 30)
+        && shortText(d, 'boughtName', 30)
+        && shortText(d, 'pantryId', 40);
     }
 
-    // Lista condivisa "Casa": accessibile a chi conosce il codice di casa (16 caratteri casuali).
+    function validPantry() {
+      let d = request.resource.data;
+      return d.keys().hasOnly(['name', 'zone', 'qty', 'expiry', 'note', 'barcode', 'byUid', 'byName', 'at', 'updatedAt'])
+        && d.name is string && d.name.size() > 0 && d.name.size() <= 80
+        && d.zone in ['frigo', 'freezer', 'credenza', 'pulizia', 'bagno']
+        && d.qty is int && d.qty >= 0 && d.qty <= 999
+        && shortText(d, 'expiry', 10)
+        && shortText(d, 'note', 120)
+        && shortText(d, 'barcode', 14)
+        && shortText(d, 'byName', 30);
+    }
+
+    function validBarcode() {
+      let d = request.resource.data;
+      return d.keys().hasOnly(['name', 'zone', 'cat', 'note', 'at'])
+        && d.name is string && d.name.size() > 0 && d.name.size() <= 80
+        && shortText(d, 'zone', 20)
+        && shortText(d, 'cat', 20)
+        && shortText(d, 'note', 120);
+    }
+
+    // Lista della spesa condivisa "Casa"
     match /households/{code}/items/{itemId} {
-      allow read, delete: if signedIn() && code.matches('^[A-Z0-9]{4}(-[A-Z0-9]{4}){3}$');
-      allow create, update: if signedIn() && code.matches('^[A-Z0-9]{4}(-[A-Z0-9]{4}){3}$') && validItem();
+      allow read, delete: if member(code);
+      allow create, update: if member(code) && validItem();
     }
 
-    // Lista "Solo mio": ogni telefono vede e modifica solo la propria.
+    // Dispensa condivisa
+    match /households/{code}/pantry/{itemId} {
+      allow read, delete: if member(code);
+      allow create, update: if member(code) && validPantry();
+    }
+
+    // Prodotti già riconosciuti dal codice a barre (memoria della casa)
+    match /households/{code}/barcodes/{ean} {
+      allow read: if member(code);
+      allow create, update: if member(code) && ean.matches('^[0-9]{8,14}$') && validBarcode();
+    }
+
+    // Lista "Solo mio": ogni telefono vede e modifica solo la propria
     match /users/{uid}/items/{itemId} {
       allow read, delete: if signedIn() && request.auth.uid == uid;
       allow create, update: if signedIn() && request.auth.uid == uid && validItem();
