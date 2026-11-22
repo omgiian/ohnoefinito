@@ -246,10 +246,13 @@ select.pillsel { -webkit-appearance: none; appearance: none; padding-right: 28px
 .scanner header h2 { margin: 0; font-family: var(--font-display); font-weight: 600; font-size: 1.2rem; }
 .scanner .stage { position: relative; overflow: hidden; }
 .scanner video { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
-.scanner .frame { position: absolute; left: 50%; top: 50%; width: min(78vw, 360px); height: min(40vw, 180px); transform: translate(-50%, -50%); border-radius: 18px; box-shadow: 0 0 0 100vmax rgb(18 17 21 / .55); border: 3px solid #b7d6c4; }
+.scanner .frame { position: absolute; left: 50%; top: 50%; width: min(78vw, 360px); height: min(40vw, 180px); transform: translate(-50%, -50%); border-radius: 18px; border: 3px solid #b7d6c4; }
 .scanner .frame::after { content: ""; position: absolute; left: 8%; right: 8%; top: 50%; height: 2px; background: #f0cfcf; animation: scan 1.6s ease-in-out infinite alternate; }
 @keyframes scan { from { transform: translateY(-60px); } to { transform: translateY(60px); } }
-.scanner .msg { position: absolute; left: 16px; right: 16px; bottom: 16px; text-align: center; font-size: 14px; font-weight: 700; }
+.scanner .msg { position: absolute; left: 16px; right: 16px; bottom: 16px; text-align: center; font-size: 14px; font-weight: 700; background: rgb(18 17 21 / .7); border-radius: 12px; padding: 8px 12px; }
+.scanner .stage { min-height: 240px; background: #000; }
+.scanner .file-in { position: absolute; width: 1px; height: 1px; opacity: 0; pointer-events: none; }
+.scanner label.btn { cursor: pointer; }
 .scanner footer { padding: 12px 18px calc(16px + env(safe-area-inset-bottom, 0px)); display: grid; gap: 10px; }
 .scanner footer .row input { flex: 1; min-width: 0; border: 0; border-radius: 12px; padding: 11px 14px; background: #26252b; color: #f3f1ee; }
 .scanner .btn.soft { background: #34323a; color: #f3f1ee; }

@@ -1,5 +1,9 @@
-// Scanner di codici a barre: fotocamera posteriore, lettura con BarcodeDetector
-// (se il browser lo ha) oppure con ZXing (iPhone), più inserimento manuale delle cifre.
+// Scanner di codici a barre.
+// 1. Fotocamera dal vivo: apriamo noi lo stream (impostazioni compatibili con iPhone),
+//    controlliamo che arrivino davvero immagini e leggiamo i fotogrammi con
+//    BarcodeDetector (se il browser lo ha) oppure con il decodificatore di ZXing.
+// 2. "Scatta una foto": usa la fotocamera di sistema e legge il codice dalla foto.
+// 3. Inserimento a mano delle cifre.
 
 const ZXING_SRC = "vendor/zxing-0.21.3.min.js";
 let zxingLoading = null;
@@ -27,112 +31,270 @@ function el(html) {
   t.innerHTML = html.trim();
   return t.content.firstElementChild;
 }
+const sleep = ms => new Promise(r => setTimeout(r, ms));
 
-/** Apre la fotocamera e risolve con il codice letto, oppure null se si annulla. */
+// ---------- decodificatori ----------
+let nativeDetector;          // undefined = non ancora controllato, null = non disponibile
+async function getNativeDetector() {
+  if (nativeDetector !== undefined) return nativeDetector;
+  nativeDetector = null;
+  if ("BarcodeDetector" in window) {
+    try {
+      const formats = await window.BarcodeDetector.getSupportedFormats();
+      const want = ["ean_13", "ean_8", "upc_a", "upc_e"].filter(f => formats.includes(f));
+      if (want.includes("ean_13")) nativeDetector = new window.BarcodeDetector({ formats: want });
+    } catch (_) {}
+  }
+  return nativeDetector;
+}
+
+let zxReader = null;
+async function getZxing() {
+  const ZX = await loadZxing();
+  if (!zxReader) {
+    zxReader = new ZX.MultiFormatReader();
+    const hints = new Map();
+    hints.set(ZX.DecodeHintType.POSSIBLE_FORMATS, [
+      ZX.BarcodeFormat.EAN_13, ZX.BarcodeFormat.EAN_8, ZX.BarcodeFormat.UPC_A, ZX.BarcodeFormat.UPC_E,
+    ]);
+    zxReader.setHints(hints);
+  }
+  return ZX;
+}
+
+/** Prova a leggere un codice dal contenuto di un canvas. */
+async function decodeCanvas(canvas) {
+  const native = await getNativeDetector();
+  if (native) {
+    try {
+      const found = await native.detect(canvas);
+      const hit = found.find(b => validBarcode(b.rawValue));
+      if (hit) return hit.rawValue;
+    } catch (_) {}
+  }
+  const ZX = await getZxing();
+  for (const Bin of [ZX.HybridBinarizer, ZX.GlobalHistogramBinarizer]) {
+    try {
+      const src = new ZX.HTMLCanvasElementLuminanceSource(canvas);
+      const text = zxReader.decodeWithState(new ZX.BinaryBitmap(new Bin(src))).getText();
+      if (validBarcode(text)) return text;
+    } catch (_) { /* nessun codice in questo fotogramma */ }
+  }
+  return null;
+}
+
+/** Disegna una sorgente (video o immagine) su un canvas, con ritaglio, scala e rotazione facoltativi. */
+function drawTo(canvas, source, sw, sh, { crop = null, maxW = 1000, rotate = 0 } = {}) {
+  const [cx, cy, cw, ch] = crop || [0, 0, sw, sh];
+  const scale = Math.min(1, maxW / Math.max(cw, ch));
+  const w = Math.round(cw * scale), h = Math.round(ch * scale);
+  const rot = rotate % 180 !== 0;
+  canvas.width = rot ? h : w; canvas.height = rot ? w : h;
+  const ctx = canvas.getContext("2d", { willReadFrequently: true });
+  ctx.save();
+  if (rotate) { ctx.translate(canvas.width / 2, canvas.height / 2); ctx.rotate(rotate * Math.PI / 180); ctx.translate(-w / 2, -h / 2); }
+  ctx.drawImage(source, cx, cy, cw, ch, 0, 0, w, h);
+  ctx.restore();
+}
+
+/** Legge un codice da una foto (File). */
+export async function decodeImageFile(file) {
+  const url = URL.createObjectURL(file);
+  try {
+    const img = new Image();
+    img.decoding = "async";
+    img.src = url;
+    await img.decode();
+    const W = img.naturalWidth, H = img.naturalHeight;
+    const canvas = document.createElement("canvas");
+    const attempts = [
+      { maxW: 1400 }, { maxW: 900 },
+      { maxW: 1400, crop: [0, Math.round(H * 0.25), W, Math.round(H * 0.5)] },
+      { maxW: 1400, rotate: 90 }, { maxW: 900, rotate: 90 },
+    ];
+    for (const a of attempts) {
+      drawTo(canvas, img, W, H, a);
+      const code = await decodeCanvas(canvas);
+      if (code) return code;
+    }
+    return null;
+  } finally {
+    URL.revokeObjectURL(url);
+  }
+}
+
+// ---------- fotocamera dal vivo ----------
+async function waitForFrames(video, ms) {
+  const end = Date.now() + ms;
+  while (Date.now() < end) {
+    if (video.readyState >= 2 && video.videoWidth > 0) return true;
+    await sleep(100);
+  }
+  return false;
+}
+
+/** Apre la fotocamera posteriore e restituisce lo stream solo se il video mostra davvero immagini. */
+async function openCamera(video) {
+  const attempts = [
+    { audio: false, video: { facingMode: { ideal: "environment" } } },
+    { audio: false, video: { facingMode: "environment" } },
+    { audio: false, video: true },
+  ];
+  let lastError = null;
+  for (const constraints of attempts) {
+    let stream;
+    try {
+      stream = await navigator.mediaDevices.getUserMedia(constraints);
+    } catch (e) {
+      lastError = e;
+      if (e && (e.name === "NotAllowedError" || e.name === "SecurityError")) throw e;
+      continue;
+    }
+    // su iPhone il video deve essere muto e "inline" prima di collegare lo stream
+    video.muted = true;
+    video.defaultMuted = true;
+    video.playsInline = true;
+    video.setAttribute("playsinline", "");
+    video.setAttribute("webkit-playsinline", "");
+    video.setAttribute("muted", "");
+    video.srcObject = stream;
+    try { await video.play(); } catch (_) {}
+    if (await waitForFrames(video, 3000)) return stream;
+    // nessuna immagine: chiudiamo e riproviamo con impostazioni più semplici
+    stream.getTracks().forEach(t => t.stop());
+    video.srcObject = null;
+  }
+  if (lastError) throw lastError;
+  return null;
+}
+
+/** Apre lo scanner e risolve con il codice letto, oppure null se si annulla. */
 export function scanBarcode() {
   return new Promise(resolve => {
     const root = el(`
       <div class="scanner" role="dialog" aria-modal="true" aria-label="Scansiona codice a barre">
         <header><h2>Inquadra il codice a barre</h2><button class="btn soft" type="button" data-close>Chiudi</button></header>
         <div class="stage">
-          <video playsinline muted autoplay></video>
+          <video playsinline webkit-playsinline muted autoplay></video>
           <div class="frame"></div>
           <div class="msg" data-msg>Avvio la fotocamera…</div>
         </div>
         <footer>
           <div class="row">
-            <input type="text" inputmode="numeric" pattern="[0-9]*" placeholder="Oppure scrivi le cifre sotto le barre" aria-label="Codice a barre" maxlength="14">
-            <button class="btn" type="button" data-manual>OK</button>
+            <label class="btn grow" data-photo>Scatta una foto al codice<input type="file" accept="image/*" capture="environment" class="file-in" data-file></label>
+            <button class="btn soft" type="button" data-retry hidden>Riprova</button>
+          </div>
+          <div class="row">
+            <input type="text" inputmode="numeric" pattern="[0-9]*" placeholder="Oppure scrivi le cifre" aria-label="Codice a barre" maxlength="14" data-digits>
+            <button class="btn soft" type="button" data-manual>OK</button>
           </div>
         </footer>
       </div>`);
     document.body.appendChild(root);
     const video = root.querySelector("video");
     const msg = root.querySelector("[data-msg]");
-    const input = root.querySelector("input");
-    let stream = null, reader = null, stopped = false, rafId = 0;
+    const digits = root.querySelector("[data-digits]");
+    const fileIn = root.querySelector("[data-file]");
+    const retryBtn = root.querySelector("[data-retry]");
+    const canvas = document.createElement("canvas");
+    let stream = null, closed = false, runId = 0;
 
-    function stop() {
-      stopped = true;
-      cancelAnimationFrame(rafId);
-      try { reader && reader.reset(); } catch (_) {}
+    function stopCamera() {
+      runId++;
       if (stream) stream.getTracks().forEach(t => t.stop());
-      const vs = video.srcObject;
-      if (vs && vs.getTracks) vs.getTracks().forEach(t => t.stop());
+      stream = null;
+      video.srcObject = null;
+    }
+    function close(code) {
+      if (closed) return;
+      closed = true;
+      stopCamera();
       root.remove();
+      resolve(code || null);
     }
     function done(code) {
-      if (stopped) return;
+      if (closed) return;
       root.classList.add("hit");
       if (navigator.vibrate) navigator.vibrate(60);
-      setTimeout(() => { stop(); resolve(code); }, 150);
+      setTimeout(() => close(code), 150);
     }
-    root.querySelector("[data-close]").addEventListener("click", () => { stop(); resolve(null); });
+
+    root.querySelector("[data-close]").addEventListener("click", () => close(null));
     root.querySelector("[data-manual]").addEventListener("click", () => {
-      const v = input.value.replace(/\D/g, "");
+      const v = digits.value.replace(/\D/g, "");
       if (validBarcode(v)) done(v);
-      else { msg.textContent = "Il codice deve avere 8, 12, 13 o 14 cifre."; input.focus(); }
+      else { msg.textContent = "Il codice deve avere 8, 12, 13 o 14 cifre."; digits.focus(); }
     });
-    input.addEventListener("keydown", e => { if (e.key === "Enter") root.querySelector("[data-manual]").click(); });
+    digits.addEventListener("keydown", e => { if (e.key === "Enter") root.querySelector("[data-manual]").click(); });
 
-    const constraints = { audio: false, video: { facingMode: { ideal: "environment" }, width: { ideal: 1280 }, height: { ideal: 720 } } };
+    // foto: la fotocamera di sistema non può lavorare insieme allo stream, quindi lo chiudiamo prima
+    root.querySelector("[data-photo]").addEventListener("click", () => {
+      stopCamera();
+      msg.textContent = "Scatta una foto ravvicinata e dritta al codice a barre.";
+      retryBtn.hidden = false;
+      fileIn.value = "";
+    });
+    fileIn.addEventListener("change", async () => {
+      const f = fileIn.files && fileIn.files[0];
+      if (!f) return;
+      msg.textContent = "Leggo la foto…";
+      try {
+        const code = await decodeImageFile(f);
+        if (code) return done(code);
+        msg.textContent = "Non trovo il codice nella foto. Riprova più vicino e con più luce, oppure scrivi le cifre.";
+      } catch (e) {
+        console.error(e);
+        msg.textContent = e && e.message === "zxing"
+          ? "Non riesco a caricare il lettore (serve la rete la prima volta). Scrivi le cifre qui sotto."
+          : "Non riesco a leggere la foto. Riprova o scrivi le cifre.";
+      }
+    });
+    retryBtn.addEventListener("click", () => { retryBtn.hidden = true; startLive(); });
 
-    async function start() {
+    async function startLive() {
+      const myRun = ++runId;
+      msg.textContent = "Avvio la fotocamera…";
       if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-        msg.textContent = "Questo browser non può usare la fotocamera. Scrivi le cifre qui sotto.";
+        msg.textContent = "Qui la fotocamera dal vivo non è disponibile: usa “Scatta una foto” o scrivi le cifre.";
         return;
       }
       try {
-        let native = null;
-        if ("BarcodeDetector" in window) {
-          try {
-            const formats = await window.BarcodeDetector.getSupportedFormats();
-            if (formats.includes("ean_13")) native = new window.BarcodeDetector({ formats: ["ean_13", "ean_8", "upc_a", "upc_e"].filter(f => formats.includes(f)) });
-          } catch (_) {}
+        // carichiamo il lettore in parallelo, così è pronto quando arrivano le immagini
+        const ready = getNativeDetector().then(n => n || getZxing());
+        const s = await openCamera(video);
+        if (closed || myRun !== runId) { if (s) s.getTracks().forEach(t => t.stop()); return; }
+        if (!s) {
+          msg.textContent = "La fotocamera non mostra immagini. Usa “Scatta una foto al codice”.";
+          retryBtn.hidden = false;
+          return;
         }
-        if (native) {
-          stream = await navigator.mediaDevices.getUserMedia(constraints);
-          if (stopped) return stream.getTracks().forEach(t => t.stop());
-          video.srcObject = stream;
-          await video.play().catch(() => {});
-          msg.textContent = "Tieni il codice dentro il riquadro";
-          const tick = async () => {
-            if (stopped) return;
-            try {
-              if (video.readyState >= 2) {
-                const found = await native.detect(video);
-                const hit = found.find(b => validBarcode(b.rawValue));
-                if (hit) return done(hit.rawValue);
-              }
-            } catch (_) {}
-            rafId = requestAnimationFrame(tick);
-          };
-          tick();
-        } else {
-          const ZXing = await loadZxing();
-          if (stopped) return;
-          const hints = new Map();
-          hints.set(ZXing.DecodeHintType.POSSIBLE_FORMATS, [
-            ZXing.BarcodeFormat.EAN_13, ZXing.BarcodeFormat.EAN_8, ZXing.BarcodeFormat.UPC_A, ZXing.BarcodeFormat.UPC_E,
-          ]);
-          reader = new ZXing.BrowserMultiFormatReader(hints, 150);
-          await reader.decodeFromConstraints(constraints, video, (result) => {
-            if (result && validBarcode(result.getText())) done(result.getText());
-          });
-          if (!stopped) msg.textContent = "Tieni il codice dentro il riquadro";
+        stream = s;
+        await ready;
+        msg.textContent = "Tieni il codice dentro il riquadro";
+        while (!closed && myRun === runId) {
+          const vw = video.videoWidth, vh = video.videoHeight;
+          if (vw && vh) {
+            // la fascia centrale, dove sta il riquadro
+            const band = Math.round(vh * 0.5);
+            drawTo(canvas, video, vw, vh, { crop: [0, Math.round((vh - band) / 2), vw, band], maxW: 960 });
+            const code = await decodeCanvas(canvas);
+            if (code) return done(code);
+          }
+          await sleep(120);
         }
       } catch (e) {
         console.error(e);
-        if (stopped) return;
+        if (closed || myRun !== runId) return;
         const denied = e && (e.name === "NotAllowedError" || e.name === "SecurityError");
         msg.textContent = denied
-          ? "Accesso alla fotocamera negato. Su iPhone: Impostazioni › Safari › Fotocamera › Consenti. Intanto puoi scrivere le cifre qui sotto."
+          ? "Accesso alla fotocamera negato. Su iPhone: Impostazioni › Safari › Fotocamera › Consenti. Intanto puoi scattare una foto o scrivere le cifre."
           : e && e.message === "zxing"
             ? "Non riesco a caricare il lettore (serve la rete la prima volta). Scrivi le cifre qui sotto."
-            : "Non riesco ad avviare la fotocamera. Scrivi le cifre qui sotto.";
+            : "Non riesco ad avviare la fotocamera. Usa “Scatta una foto al codice” o scrivi le cifre.";
+        retryBtn.hidden = false;
       }
     }
-    start();
+    startLive();
   });
 }
 
