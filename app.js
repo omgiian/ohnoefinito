@@ -2,7 +2,7 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/fireba
 import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
 import {
   initializeFirestore, persistentLocalCache, persistentMultipleTabManager, memoryLocalCache,
-  collection, doc, setDoc, updateDoc, deleteDoc, getDoc, onSnapshot, increment,
+  collection, doc, setDoc, updateDoc, deleteDoc, getDoc, getDocs, onSnapshot, increment, writeBatch,
 } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 import { AVATARS, AVATAR_COLORS, avatarSvg, randomAvatar } from "./avatars.js";
 
@@ -67,6 +67,7 @@ const I = {
   plus: `<svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M10 4v12M4 10h12"/></svg>`,
   minus: `<svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M4 10h12"/></svg>`,
   cart: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 7h14l-1.4 9.1a2 2 0 0 1-2 1.7H8.4a2 2 0 0 1-2-1.7L5 7z"/><path d="M9 7a3 3 0 0 1 6 0"/></svg>`,
+  receipt: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 3.5h12v17l-2-1.3-2 1.3-2-1.3-2 1.3-2-1.3-2 1.3z"/><path d="M9 8h6M9 11.5h6M9 15h3.5"/></svg>`,
   shelf: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="3.5" width="16" height="17" rx="2.5"/><path d="M4 10h16M4 15.5h16"/><path d="M8 6.8h3M8 12.7h2"/></svg>`,
 };
 
@@ -766,6 +767,252 @@ function closeSheet() {
   $("sheet-root").innerHTML = "";
   document.body.style.overflow = "";
   removeEventListener("keydown", escClose);
+}
+
+// ======================================================================
+// SCONTRINI (per ora: Esselunga in PDF)
+// ======================================================================
+let receiptModP = null;
+const receiptMod = () => (receiptModP ||= import("./receipt.js"));
+
+$("pantry-receipt").innerHTML = I.receipt;
+$("pantry-receipt").addEventListener("click", openReceiptStart);
+
+function openSheet(html) {
+  closeSheet();
+  const scrim = document.createElement("div");
+  scrim.className = "scrim";
+  scrim.innerHTML = html;
+  $("sheet-root").appendChild(scrim);
+  document.body.style.overflow = "hidden";
+  scrim.addEventListener("click", e => { if (e.target === scrim) closeSheet(); });
+  addEventListener("keydown", escClose);
+  return scrim.firstElementChild;
+}
+
+function openReceiptStart() {
+  const sheet = openSheet(`
+    <div class="sheet" role="dialog" aria-modal="true" aria-labelledby="rc-title">
+      <div class="grab"></div>
+      <h2 id="rc-title">Importa uno scontrino</h2>
+      <p class="sheet-p">Per ora leggo gli <b>scontrini digitali Esselunga</b> in PDF. Nell’app Esselunga apri lo scontrino, tocca Condividi e salvalo su File, poi sceglilo qui.</p>
+      <label class="btn scan-big" id="rc-pick">${I.receipt}<span>Scegli il PDF dello scontrino</span>
+        <input type="file" accept="application/pdf,.pdf" class="file-in" id="rc-file"></label>
+      <details class="rc-paste"><summary>Oppure incolla il testo dello scontrino</summary>
+        <textarea id="rc-text" rows="6" placeholder="CUORI DI LATTUGA   *a   1,98&#10;…"></textarea>
+        <button type="button" class="btn soft" id="rc-read">Leggi il testo</button>
+      </details>
+      <p class="notice error" id="rc-err" hidden></p>
+      <button type="button" class="btn soft" data-cancel>Annulla</button>
+    </div>`);
+  const err = t => { $("rc-err").textContent = t; $("rc-err").hidden = !t; };
+  sheet.querySelector("[data-cancel]").addEventListener("click", closeSheet);
+  $("rc-file").addEventListener("change", async e => {
+    const f = e.target.files && e.target.files[0];
+    if (!f) return;
+    err("");
+    $("rc-pick").querySelector("span").textContent = "Leggo lo scontrino…";
+    try {
+      const m = await receiptMod();
+      handleReceipt(m, m.parseEsselunga(await m.pdfLines(f)), err);
+    } catch (ex) {
+      console.error(ex);
+      err("Non riesco a leggere questo PDF. È lo scontrino digitale originale? Se il problema resta, prova a incollare il testo.");
+    } finally {
+      const span = $("rc-pick")?.querySelector("span");
+      if (span) span.textContent = "Scegli il PDF dello scontrino";
+    }
+  });
+  $("rc-read").addEventListener("click", async () => {
+    const t = $("rc-text").value;
+    if (!t.trim()) { err("Incolla prima il testo dello scontrino."); return; }
+    const m = await receiptMod();
+    handleReceipt(m, m.parseEsselunga(t.split(/\r?\n/)), err);
+  });
+}
+
+async function handleReceipt(m, parsed, err) {
+  if (!parsed.items.length) {
+    err(parsed.store
+      ? "Ho riconosciuto uno scontrino Esselunga ma non trovo i prodotti. Mandami il PDF così aggiorno il lettore."
+      : "Non sembra uno scontrino Esselunga: per ora leggo solo quelli.");
+    return;
+  }
+  // correzioni salvate in passato e scontrino già importato?
+  let learned = {}, already = null;
+  try {
+    const snap = await getDocs(collection(fs, "households", state.code, "receiptNames"));
+    snap.forEach(d => { learned[d.id] = d.data(); });
+  } catch (e) { console.warn("receiptNames", e); }
+  const rid = m.receiptId(parsed);
+  if (rid) { try { const s = await getDoc(doc(fs, "households", state.code, "receipts", rid)); if (s.exists()) already = s.data(); } catch (_) {} }
+
+  const rows = parsed.items.map((it, i) => {
+    const key = m.receiptKey(it.raw);
+    const l = learned[key];
+    const zone = l?.zone || m.guessZone(it.raw);
+    return {
+      i, key, raw: it.raw,
+      name: l?.name || m.prettyName(it.raw),
+      zone: zone === "skip" ? "credenza" : zone,
+      include: l ? !l.skip : zone !== "skip",
+      qty: it.qty, weightKg: it.weightKg, learned: !!l,
+    };
+  });
+  openReceiptReview(m, parsed, rows, rid, already);
+}
+
+/** Trova le voci della lista della spesa "Casa" che corrispondono ai prodotti comprati. */
+function matchShopping(rows) {
+  const words = s => norm(s).normalize("NFD").replace(/[̀-ͯ]/g, "").split(/[^a-z0-9]+/).filter(w => w.length >= 3);
+  const open = state.data.casa.filter(i => i.status !== "ok");
+  const out = [];
+  for (const item of open) {
+    const need = words(item.name);
+    if (!need.length) continue;
+    const hit = rows.find(r => {
+      if (!r.include) return false;
+      const have = words(r.name + " " + r.raw);
+      const pItem = item.pantryId && state.data.pantry.find(p => p.id === item.pantryId);
+      if (pItem && norm(pItem.name) === norm(r.name)) return true;
+      // ogni parola della voce in lista deve iniziare una parola del prodotto (o viceversa, per parole abbreviate)
+      return need.every(w => have.some(h => h.startsWith(w) || (h.length >= 4 && w.startsWith(h))));
+    });
+    if (hit) out.push({ item, row: hit });
+  }
+  return out;
+}
+
+function openReceiptReview(m, parsed, rows, rid, already) {
+  const dateLabel = parsed.date
+    ? new Date(parsed.date + "T12:00:00").toLocaleDateString("it-IT", { day: "numeric", month: "long", year: "numeric" }) + (parsed.time ? ` alle ${parsed.time}` : "")
+    : "data non trovata";
+  const money = v => v == null ? "" : v.toLocaleString("it-IT", { style: "currency", currency: "EUR" });
+  const zoneOpts = z => ZONES.map(o => `<option value="${o.id}" ${o.id === z ? "selected" : ""}>${o.label}</option>`).join("");
+  const sheet = openSheet(`
+    <form class="sheet rc-sheet" role="dialog" aria-modal="true" aria-labelledby="rv-title" autocomplete="off">
+      <div class="grab"></div>
+      <h2 id="rv-title">Controlla lo scontrino</h2>
+      <div class="rc-summary"><b>${esc(parsed.store || "Scontrino")}</b> · ${esc(dateLabel)}<br>${rows.length} prodotti · ${money(parsed.total)}</div>
+      ${already ? `<div class="notice">Questo scontrino l’avete già importato${already.at ? ` ${ago(already.at)}` : ""}. Se lo importi di nuovo, le quantità in dispensa si sommano un’altra volta.</div>` : ""}
+      <p class="sheet-p">Controlla nomi e zone. Le correzioni me le ricordo per i prossimi scontrini. Togli la spunta a ciò che non va in dispensa.</p>
+      <div class="rc-list" id="rv-list">${rows.map(r => `
+        <div class="rc-row${r.include ? "" : " off"}" data-i="${r.i}" data-z="${r.zone}">
+          <input type="checkbox" class="rc-check" ${r.include ? "checked" : ""} aria-label="Aggiungi ${esc(r.name)} alla dispensa">
+          <div class="rc-main">
+            <input type="text" class="rc-name" value="${esc(r.name)}" maxlength="80" aria-label="Nome">
+            <div class="rc-raw">${esc(r.raw)}${r.weightKg ? ` · ${String(r.weightKg).replace(".", ",")} kg` : ""}${r.learned ? " · ricordato" : ""}</div>
+            <div class="rc-ctl">
+              <span class="dot"></span>
+              <select class="pillsel rc-zone" aria-label="Zona">${zoneOpts(r.zone)}</select>
+              <div class="stepper"><button type="button" data-q="-1" aria-label="Meno">${I.minus}</button><output>${r.qty}</output><button type="button" data-q="1" aria-label="Più">${I.plus}</button></div>
+            </div>
+          </div>
+        </div>`).join("")}
+      </div>
+      <div id="rv-shop"></div>
+      <div class="rc-foot">
+        <button type="submit" class="btn grow" id="rv-go"></button>
+        <button type="button" class="btn soft" data-cancel>Annulla</button>
+      </div>
+    </form>`);
+  const list = $("rv-list");
+  const rowEl = i => list.querySelector(`.rc-row[data-i="${i}"]`);
+  let shopMatches = [];
+  const unticked = new Set();
+  function refreshFoot() {
+    const n = rows.filter(r => r.include).length;
+    $("rv-go").textContent = `Aggiungi ${n} in dispensa`;
+    $("rv-go").disabled = n === 0;
+    shopMatches = matchShopping(rows);
+    $("rv-shop").innerHTML = shopMatches.length ? `
+      <div class="rc-shop"><h3>Comprati dalla lista della spesa</h3>
+      <p class="sheet-p">Li segno come presi nella lista “Casa”.</p>
+      ${shopMatches.map(({ item, row }) => `<label class="rc-match"><input type="checkbox" data-shop="${esc(item.id)}" ${unticked.has(item.id) ? "" : "checked"}>
+        <span><b>${esc(item.name)}</b> <small>→ ${esc(row.name)}</small></span></label>`).join("")}</div>` : "";
+  }
+  refreshFoot();
+
+  list.addEventListener("input", e => {
+    const el = e.target.closest(".rc-row"); if (!el) return;
+    const r = rows[+el.dataset.i];
+    if (e.target.matches(".rc-name")) { r.name = e.target.value; }
+  });
+  list.addEventListener("change", e => {
+    const el = e.target.closest(".rc-row"); if (!el) return;
+    const r = rows[+el.dataset.i];
+    if (e.target.matches(".rc-check")) { r.include = e.target.checked; el.classList.toggle("off", !r.include); }
+    if (e.target.matches(".rc-zone")) { r.zone = e.target.value; el.dataset.z = r.zone; }
+    if (e.target.matches(".rc-name")) { r.name = e.target.value.trim() || m.prettyName(r.raw); e.target.value = r.name; }
+    refreshFoot();
+  });
+  list.addEventListener("click", e => {
+    const b = e.target.closest("[data-q]"); if (!b) return;
+    const el = b.closest(".rc-row"); const r = rows[+el.dataset.i];
+    r.qty = Math.max(1, Math.min(99, r.qty + Number(b.dataset.q)));
+    el.querySelector("output").textContent = r.qty;
+  });
+  $("rv-shop").addEventListener("change", e => {
+    const c = e.target.closest("[data-shop]"); if (!c) return;
+    if (c.checked) unticked.delete(c.dataset.shop); else unticked.add(c.dataset.shop);
+  });
+  sheet.querySelector("[data-cancel]").addEventListener("click", closeSheet);
+
+  sheet.addEventListener("submit", e => {
+    e.preventDefault();
+    const now = Date.now();
+    const batch = writeBatch(fs);
+    const pantryCol = colFor("pantry");
+    let added = 0, merged = 0;
+    const plannedNew = new Map();   // nome+zona → riga già creata in questo scontrino
+    for (const r of rows) {
+      const name = r.name.trim().replace(/\s+/g, " ").slice(0, 80) || m.prettyName(r.raw);
+      // ricorda nome, zona e se va saltato
+      batch.set(doc(fs, "households", state.code, "receiptNames", r.key), { name, zone: r.zone, skip: !r.include, at: now });
+      if (!r.include) continue;
+      const k = norm(name) + "|" + r.zone;
+      const existing = state.data.pantry.find(p => norm(p.name) === norm(name) && p.zone === r.zone);
+      if (existing) {
+        batch.update(doc(pantryCol, existing.id), { qty: increment(r.qty), updatedAt: now });
+        r.pantryId = existing.id; merged++;
+      } else if (plannedNew.has(k)) {
+        batch.update(doc(pantryCol, plannedNew.get(k)), { qty: increment(r.qty), updatedAt: now });
+        r.pantryId = plannedNew.get(k);
+      } else {
+        const ref = doc(pantryCol);
+        batch.set(ref, {
+          name, zone: r.zone, qty: r.qty, expiry: null,
+          note: r.weightKg ? `${String(r.weightKg).replace(".", ",")} kg` : "",
+          barcode: null, byUid: state.uid, byName: state.me, at: now, updatedAt: now,
+        });
+        plannedNew.set(k, ref.id); r.pantryId = ref.id; added++;
+      }
+    }
+    for (const { item } of shopMatches) {
+      if (unticked.has(item.id)) continue;
+      batch.update(doc(colFor("casa"), item.id), { status: "ok", boughtUid: state.uid, boughtName: state.me, boughtAt: now });
+    }
+    if (rid) batch.set(doc(fs, "households", state.code, "receipts", rid), {
+      store: parsed.store || "", date: parsed.date || "", time: parsed.time || "", docNumber: parsed.docNumber || "",
+      total: parsed.total ?? null, products: rows.filter(r => r.include).length, byUid: state.uid, at: now,
+    });
+    const ticked = shopMatches.filter(x => !unticked.has(x.item.id)).length;
+    const parts = [];
+    if (added) parts.push(`${added} nuovi`);
+    if (merged) parts.push(`${merged} aggiornati`);
+    if (ticked) parts.push(`${ticked} spuntati dalla spesa`);
+    const summary = parts.join(", ") || "nessun prodotto";
+    batch.commit().then(() => showToast(`Scontrino importato: ${summary}`)).catch(err => {
+      console.error(err);
+      state.problems.pantry = err && err.code === "permission-denied"
+        ? "Lo scontrino non è stato salvato: aggiorna le regole di Firestore con il nuovo firestore.rules (vedi README)."
+        : "Lo scontrino non è stato salvato. Controlla la connessione e riprova.";
+      renderData();
+    });
+    closeSheet();
+    showToast(navigator.onLine ? "Salvo lo scontrino…" : `Senza rete: ${summary}. Lo sincronizzo appena torna la connessione.`);
+    state.tab = "dispensa"; state.zone = "all"; render();
+  });
 }
 
 // ======================================================================
