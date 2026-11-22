@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024">
+  <!-- Icona dell'app: stile "cozy" con macchie di colore e disegno a tratto -->
+  <rect width="1024" height="1024" fill="#ffffff"/>
+  <path d="M70 300C110 100 420 30 610 140c160 92 300 110 414 230v330C800 690 560 700 360 740 180 776 50 650 56 480c3-80 6-130 14-180z" fill="#2f4a2c"/>
+  <path d="M0 790c100-120 380-130 610-80 190 40 330 20 414 50v264H0z" fill="#d8c07f"/>
+  <circle cx="250" cy="290" r="100" fill="#a9c5d4"/>
+  <path d="M250 290l-52 56M250 290l14-84" stroke="#141414" stroke-width="20" stroke-linecap="round"/>
+  <ellipse cx="610" cy="650" rx="230" ry="185" fill="#f3bab7"/>
+  <ellipse cx="702" cy="372" rx="62" ry="112" fill="#f4ecc6"/>
+  <g fill="none" stroke="#141414" stroke-width="26" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M380 480h440l-42 420H422z"/>
+    <path d="M505 480c0-128 190-128 190 0"/>
+    <path d="M432 480c18-120 56-220 122-280 30-24 60 2 44 34-44 84-68 160-78 246"/>
+    <path d="M515 300l34 20M498 360l34 18"/>
+    <path d="M670 480V350c0-30 22-44 22-74v-52h40v52c0 30 22 44 22 74v130"/>
+    <path d="M776 480c14-120 86-196 160-222-10 96-56 170-128 222"/>
+    <path d="M418 640h384M404 760h372" opacity=".35"/>
+  </g>
+</svg>
