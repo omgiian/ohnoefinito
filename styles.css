@@ -153,18 +153,19 @@ main { padding-top: 18px; }
 .card-head h2, .card-head h3 { margin: 0; font-size: 1.15rem; font-weight: 400; }
 .card-head .stats { padding: 0; color: var(--card-ink); font-size: 12.5px; gap: 10px; }
 .card-head .stats svg { color: var(--forest); width: 15px; height: 15px; }
-.cards { display: grid; gap: 16px; }
+.cards { display: grid; grid-template-columns: minmax(0, 1fr); gap: 16px; }
 
 /* zone della dispensa: scheda cliccabile con le cose dentro */
-.zone-card { display: block; width: calc(100% - 26px + var(--gutter-r)); text-align: left; border: 0; font: inherit; cursor: pointer; }
+.zone-card { display: block; min-width: 0; text-align: left; cursor: pointer; }
 .zone-strip { display: flex; gap: 8px; overflow-x: auto; scrollbar-width: none; margin-top: 12px; padding-right: 20px; }
 .zone-strip::-webkit-scrollbar { display: none; }
 .thing { flex: none; display: grid; justify-items: center; gap: 4px; width: 74px; text-align: center; }
-.thing .pic { width: 62px; height: 62px; border-radius: 14px; background: rgb(255 255 255 / .55); display: grid; place-items: center; overflow: hidden; }
+.thing .pic { width: 62px; height: 62px; display: grid; place-items: center; }
+.thing .pic .prod-ico { width: 62px; height: 62px; }
 .thing .pic img { width: 100%; height: 100%; object-fit: contain; mix-blend-mode: multiply; }
 .thing .pic .mono { font-weight: 900; font-size: 1.35rem; color: var(--forest); }
 .thing .tn { font-size: 11.5px; line-height: 1.2; max-height: 2.4em; overflow: hidden; overflow-wrap: anywhere; }
-.thing.more .pic { background: transparent; box-shadow: inset 0 0 0 1.5px rgb(31 43 29 / .35); font-weight: 700; font-size: 14px; }
+.thing.more .pic { border-radius: 50%; width: 52px; height: 52px; margin: 5px; background: transparent; box-shadow: inset 0 0 0 1.5px rgb(31 43 29 / .35); font-weight: 700; font-size: 14px; }
 .zone-empty { margin-top: 10px; font-size: 14px; opacity: .75; padding-right: 20px; }
 
 /* lista della spesa dentro le schede */
@@ -198,7 +199,8 @@ main { padding-top: 18px; }
 .p-top { display: flex; justify-content: space-between; align-items: flex-start; gap: 6px; font-size: 12px; }
 .p-top .qty { font-weight: 900; font-size: 15px; margin-left: auto; font-variant-numeric: tabular-nums; }
 .p-tap { border: 0; background: none; padding: 0; text-align: left; display: grid; gap: 6px; align-content: start; color: inherit; min-width: 0; }
-.p-pic { height: 92px; display: grid; place-items: center; }
+.p-pic { height: 96px; display: grid; place-items: center; }
+.p-pic .prod-ico { width: 96px; height: 96px; }
 .p-pic img { max-width: 100%; max-height: 92px; object-fit: contain; mix-blend-mode: multiply; }
 .p-pic .mono { width: 70px; height: 70px; border-radius: 50%; background: rgb(255 255 255 / .55); display: grid; place-items: center; font-weight: 900; font-size: 1.7rem; color: var(--forest); }
 .p-name { font-weight: 900; font-size: 15.5px; line-height: 1.2; overflow-wrap: anywhere; }
@@ -275,6 +277,11 @@ main { padding-top: 18px; }
 .found { background: var(--green); color: var(--card-ink); border-radius: 12px; padding: 10px 14px; font-size: 14px; font-weight: 700; display: flex; gap: 12px; align-items: center; }
 .found img { width: 48px; height: 48px; object-fit: contain; mix-blend-mode: multiply; flex: none; }
 .found.miss { background: var(--yellow); }
+.ico-strip { display: flex; gap: 8px; overflow-x: auto; scrollbar-width: none; padding: 3px; margin: -3px; }
+.ico-strip::-webkit-scrollbar { display: none; }
+.ico-opt { flex: none; width: 78px; border: 0; background: var(--yellow); border-radius: 14px; padding: 6px 4px 6px; display: grid; justify-items: center; gap: 2px; font-size: 11px; font-weight: 700; color: var(--card-ink); }
+.ico-opt svg { width: 52px; height: 52px; }
+.ico-opt[aria-checked="true"] { box-shadow: 0 0 0 2.5px var(--forest); background: var(--green); }
 
 /* ---------- scontrini ---------- */
 .file-in { position: absolute; width: 1px; height: 1px; opacity: 0; pointer-events: none; }

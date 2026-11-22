@@ -2,9 +2,10 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/fireba
 import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
 import {
   initializeFirestore, persistentLocalCache, persistentMultipleTabManager, memoryLocalCache,
-  collection, doc, setDoc, updateDoc, deleteDoc, getDoc, getDocs, onSnapshot, increment, writeBatch,
+  collection, doc, setDoc, updateDoc, deleteDoc, getDoc, getDocs, onSnapshot, increment, writeBatch, deleteField,
 } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 import { AVATARS, AVATAR_COLORS, avatarSvg, randomAvatar } from "./avatars.js";
+import { PRODUCT_ICONS, iconIdFor, productIconSvg } from "./icons.js";
 
 const firebaseConfig = {
   apiKey: "AIzaSyBlEXrtxHlq5NIEuqpiGZbquUzWvPMcOiE",
@@ -379,7 +380,7 @@ async function scanAndLookup() {
 }
 function rememberBarcode(code, data) {
   if (!code) return;
-  setDoc(barcodeRef(code), { name: data.name, zone: data.zone || null, cat: data.cat || null, note: data.note || "", ...(data.img ? { img: data.img } : {}), at: Date.now() }).catch(e => console.warn("barcode", e));
+  setDoc(barcodeRef(code), { name: data.name, zone: data.zone || null, cat: data.cat || null, note: data.note || "", at: Date.now() }).catch(e => console.warn("barcode", e));
 }
 
 // ======================================================================
@@ -626,10 +627,9 @@ const isExpiring = p => (Number(p.qty) || 0) > 0 && daysLeft(p.expiry) != null &
 function inShopping(p) {
   return state.data.casa.some(i => i.status !== "ok" && (i.pantryId === p.id || norm(i.name) === norm(p.name)));
 }
-function productPic(p, cls = "mono") {
-  if (p.img) return `<img src="${esc(p.img)}" alt="" loading="lazy" referrerpolicy="no-referrer">`;
-  const letter = (p.name || "?").trim().charAt(0).toUpperCase();
-  return `<span class="${cls}" aria-hidden="true">${esc(letter)}</span>`;
+// disegno del prodotto (scelto a mano, oppure in base al nome e alla zona)
+function productPic(p) {
+  return productIconSvg(iconIdFor(p.name, zoneOf(p), p.icon));
 }
 function productCard(p) {
   const qty = Number(p.qty) || 0;
@@ -742,7 +742,7 @@ function openPantrySheet(item, scanned) {
   const isNew = !item;
   const d = item ? { ...item } : {
     name: scanned?.name || "", zone: scanned?.zone || (state.zone !== "all" ? state.zone : CAT_TO_ZONE[guessCat(scanned?.name || "")] || "credenza"),
-    qty: 1, expiry: "", note: scanned?.note || "", barcode: scanned?.code || null, img: scanned?.img || null,
+    qty: 1, expiry: "", note: scanned?.note || "", barcode: scanned?.code || null, icon: null,
   };
   let zoneTouched = !!(item || scanned?.zone);
   const scrim = document.createElement("div");
@@ -753,10 +753,12 @@ function openPantrySheet(item, scanned) {
       <h2 id="sheet-title">${isNew ? "Aggiungi in dispensa" : "Modifica prodotto"}</h2>
       ${isNew && !scanned ? `<button type="button" class="btn lilac scan-big" data-scan>${I.scan}<span>Scansiona codice a barre</span></button>` : ""}
       ${scanned ? (scanned.name
-        ? `<div class="found">${scanned.img ? `<img src="${esc(scanned.img)}" alt="" referrerpolicy="no-referrer">` : ""}<span>Trovato${scanned.source === "casa" ? " tra i vostri prodotti" : ""}: controlla e salva.</span></div>`
+        ? `<div class="found"><span>Trovato${scanned.source === "casa" ? " tra i vostri prodotti" : ""}: controlla e salva.</span></div>`
         : `<div class="found miss">Codice ${esc(scanned.code)} non trovato nei database. Scrivi il nome: la prossima volta lo riconosco.</div>`) : ""}
       <div class="field"><label for="ps-name">Nome</label>
         <input type="text" id="ps-name" maxlength="80" required value="${esc(d.name)}" placeholder="es. Yogurt greco"></div>
+      <div class="field"><span class="lbl">Disegno</span>
+        <div class="ico-strip" id="ps-icons" role="radiogroup" aria-label="Disegno del prodotto"></div></div>
       <div class="field"><span class="lbl">Dove sta</span>
         <div class="zones" role="group" aria-label="Zona">${ZONES.map(z => `<button type="button" data-zone="${z.id}" data-z="${z.id}" aria-pressed="${d.zone === z.id}"><span class="dot"></span>${z.label}</button>`).join("")}</div></div>
       <div class="row">
@@ -781,7 +783,21 @@ function openPantrySheet(item, scanned) {
   const nameIn = form.querySelector("#ps-name");
   if (!d.name) setTimeout(() => nameIn.focus(), 250);
 
-  const setZone = z => { d.zone = z; form.querySelectorAll("[data-zone]").forEach(b => b.setAttribute("aria-pressed", String(b.dataset.zone === z))); };
+  // scelta del disegno: "Automatico" segue nome e zona
+  const icoStrip = form.querySelector("#ps-icons");
+  const autoBtn = () => `<button type="button" class="ico-opt" data-ico="" role="radio" aria-checked="${!d.icon}">${productIconSvg(iconIdFor(nameIn.value, d.zone))}<span>Automatico</span></button>`;
+  icoStrip.innerHTML = autoBtn() + PRODUCT_ICONS.map(i =>
+    `<button type="button" class="ico-opt" data-ico="${i.id}" role="radio" aria-checked="${d.icon === i.id}">${productIconSvg(i.id)}<span>${i.label}</span></button>`).join("");
+  const refreshAuto = () => { icoStrip.firstElementChild.outerHTML = autoBtn(); };
+  icoStrip.addEventListener("click", e => {
+    const b = e.target.closest("[data-ico]"); if (!b) return;
+    d.icon = b.dataset.ico || null;
+    icoStrip.querySelectorAll("[data-ico]").forEach(x => x.setAttribute("aria-checked", String((x.dataset.ico || null) === d.icon)));
+  });
+  if (d.icon) setTimeout(() => icoStrip.querySelector(`[data-ico="${d.icon}"]`)?.scrollIntoView({ inline: "center", block: "nearest" }), 50);
+  nameIn.addEventListener("input", refreshAuto);
+
+  const setZone = z => { d.zone = z; form.querySelectorAll("[data-zone]").forEach(b => b.setAttribute("aria-pressed", String(b.dataset.zone === z))); refreshAuto(); };
   form.querySelectorAll("[data-zone]").forEach(b => b.addEventListener("click", () => { zoneTouched = true; setZone(b.dataset.zone); }));
   nameIn.addEventListener("input", () => { if (!zoneTouched) { const c = guessCat(nameIn.value); if (c) setZone(CAT_TO_ZONE[c]); } });
   form.querySelectorAll("[data-q]").forEach(b => b.addEventListener("click", () => {
@@ -790,9 +806,8 @@ function openPantrySheet(item, scanned) {
   }));
   const applyScan = r => {
     d.barcode = r.code;
-    if (r.img) d.img = r.img;
     form.querySelector("#ps-code").textContent = r.code;
-    if (r.name && !nameIn.value.trim()) nameIn.value = r.name;
+    if (r.name && !nameIn.value.trim()) { nameIn.value = r.name; refreshAuto(); }
     const noteIn = form.querySelector("#ps-note");
     if (r.note && !noteIn.value.trim()) noteIn.value = r.note;
     if (r.zone && !zoneTouched) setZone(r.zone);
@@ -816,7 +831,8 @@ function openPantrySheet(item, scanned) {
       expiry: form.querySelector("#ps-exp").value || null,
       note: form.querySelector("#ps-note").value.trim(),
       barcode: d.barcode || null,
-      ...(d.img ? { img: d.img } : {}),
+      // il disegno si salva solo se scelto a mano; tornando ad "Automatico" si toglie
+      ...(d.icon ? { icon: d.icon } : item && item.icon ? { icon: deleteField() } : {}),
       updatedAt: Date.now(),
     };
     if (isNew) {
@@ -831,7 +847,7 @@ function openPantrySheet(item, scanned) {
     } else {
       write("pantry", item.id, data).catch(() => {});
     }
-    if (data.barcode) rememberBarcode(data.barcode, { name, zone: data.zone, cat: ZONE_TO_CAT[data.zone], note: data.note, img: data.img });
+    if (data.barcode) rememberBarcode(data.barcode, { name, zone: data.zone, cat: ZONE_TO_CAT[data.zone], note: data.note });
     closeSheet();
   });
   addEventListener("keydown", escClose);
