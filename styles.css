@@ -303,24 +303,31 @@ label.btn { cursor: pointer; position: relative; }
 .rc-foot .grow { flex: 1; }
 
 /* ---------- scanner ---------- */
-.scanner { position: fixed; inset: 0; z-index: 40; background: #111; color: #fff; display: grid; grid-template-rows: auto 1fr auto; }
-.scanner header { padding: calc(14px + env(safe-area-inset-top, 0px)) 18px 10px; display: flex; justify-content: space-between; align-items: center; }
-.scanner header h2 { margin: 0; font-weight: 900; font-size: 1.2rem; }
-.scanner .stage { position: relative; overflow: hidden; min-height: 240px; background: #000; }
+.scanner {
+  position: fixed; inset: 0; z-index: 40; background: var(--bg); color: var(--ink);
+  display: grid; grid-template-rows: auto minmax(0, 1fr) auto; gap: 14px;
+  padding: calc(18px + env(safe-area-inset-top, 0px)) var(--gutter-r) 0 var(--gutter);
+}
+.sc-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
+.sc-head h1 { margin: 0; font-weight: 900; font-size: 2rem; line-height: 1.05; }
+.sc-head .sub { margin: 6px 0 0; color: var(--muted); font-size: 14px; }
+.sc-head .pill { margin-top: 4px; }
+.scanner .stage { position: relative; overflow: hidden; min-height: 240px; background: var(--forest); border-radius: 20px; }
 .scanner video { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
 .scanner .preview { position: absolute; top: 0; left: 0; width: 100%; height: 100%; display: block; }
-.scanner .frame { position: absolute; left: 50%; top: 50%; width: min(78vw, 360px); height: min(40vw, 180px); transform: translate(-50%, -50%); border-radius: 18px; border: 3px solid var(--green); }
-.scanner .frame::after { content: ""; position: absolute; left: 8%; right: 8%; top: 50%; height: 2px; background: var(--pink); animation: scan 1.6s ease-in-out infinite alternate; }
-@keyframes scan { from { transform: translateY(-60px); } to { transform: translateY(60px); } }
-.scanner .msg { position: absolute; left: 16px; right: 16px; bottom: 16px; text-align: center; font-size: 14px; font-weight: 700; background: rgb(17 17 17 / .7); border-radius: 12px; padding: 8px 12px; }
-.scanner .diag { display: block; font-size: 11px; font-weight: 400; opacity: .7; margin-top: 2px; }
+.scanner .frame { position: absolute; left: 50%; top: 50%; width: min(72vw, 340px); height: min(38vw, 170px); transform: translate(-50%, -50%); border-radius: 18px; border: 3px solid var(--green); box-shadow: 0 0 0 2px rgb(255 255 255 / .35); }
+.scanner .frame::after { content: ""; position: absolute; left: 8%; right: 8%; top: 50%; height: 2.5px; border-radius: 2px; background: var(--pink); animation: scan 1.6s ease-in-out infinite alternate; }
+@keyframes scan { from { transform: translateY(-55px); } to { transform: translateY(55px); } }
+.scanner .msg { position: absolute; left: 14px; right: 14px; bottom: 14px; text-align: center; font-size: 14px; font-weight: 700; background: var(--bg); color: var(--ink); border-radius: 14px; padding: 9px 12px; }
+.scanner .diag { display: block; font-size: 11px; font-weight: 400; color: var(--muted); margin-top: 2px; }
 .scanner .diag:empty { display: none; }
 .scanner .file-in { position: absolute; width: 1px; height: 1px; opacity: 0; pointer-events: none; }
-.scanner footer { padding: 12px 18px calc(16px + env(safe-area-inset-bottom, 0px)); display: grid; gap: 10px; }
-.scanner footer .row input { flex: 1; min-width: 0; border: 0; border-radius: 12px; padding: 11px 14px; background: #262626; color: #fff; }
-.scanner .btn { background: var(--green); color: var(--card-ink); }
-.scanner .btn.soft { background: #2a2a2a; color: #fff; box-shadow: none; }
+.scanner footer { display: grid; gap: 10px; padding-bottom: calc(16px + env(safe-area-inset-bottom, 0px)); }
+.scanner footer .row { flex-wrap: nowrap; }
+.scanner footer .row input { flex: 1; min-width: 0; border: 1.5px solid var(--ink); border-radius: 14px; padding: 11px 14px; background: var(--bg); color: var(--ink); }
+.scanner footer .btn.grow { flex: 1; }
 .scanner.hit .frame { border-color: var(--yellow); }
+.scanner.hit .stage { box-shadow: 0 0 0 4px var(--green); }
 
 /* ---------- benvenuto, casa e profilo ---------- */
 .hero { display: grid; gap: 4px; }

@@ -175,7 +175,10 @@ export function scanBarcode() {
   return new Promise(resolve => {
     const root = el(`
       <div class="scanner" role="dialog" aria-modal="true" aria-label="Scansiona codice a barre">
-        <header><h2>Inquadra il codice a barre</h2><button class="btn soft" type="button" data-close>Chiudi</button></header>
+        <header class="sc-head">
+          <div class="titles"><h1>Scansiona</h1><p class="sub">Inquadra il codice a barre del prodotto</p></div>
+          <button class="pill" type="button" data-close><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg>Chiudi</button>
+        </header>
         <div class="stage">
           <canvas class="preview" aria-hidden="true"></canvas>
           <div class="frame"></div>
@@ -183,12 +186,12 @@ export function scanBarcode() {
         </div>
         <footer>
           <div class="row">
-            <label class="btn grow" data-photo>Scatta una foto al codice<input type="file" accept="image/*" capture="environment" class="file-in" data-file></label>
-            <button class="btn soft" type="button" data-retry hidden>Riprova</button>
+            <label class="btn grow" data-photo><svg viewBox="0 0 24 24" fill="currentColor"><path d="M9 4.5h6l1.5 2H20a1.5 1.5 0 0 1 1.5 1.5v10A1.5 1.5 0 0 1 20 19.5H4A1.5 1.5 0 0 1 2.5 18V8A1.5 1.5 0 0 1 4 6.5h3.5z"/><circle cx="12" cy="12.8" r="3.6" fill="#fff"/></svg>Scatta una foto al codice<input type="file" accept="image/*" capture="environment" class="file-in" data-file></label>
+            <button class="pill" type="button" data-retry hidden>Riprova</button>
           </div>
           <div class="row">
             <input type="text" inputmode="numeric" pattern="[0-9]*" placeholder="Oppure scrivi le cifre" aria-label="Codice a barre" maxlength="14" data-digits>
-            <button class="btn soft" type="button" data-manual>OK</button>
+            <button class="btn soft" type="button" data-manual>Cerca</button>
           </div>
         </footer>
       </div>`);
