@@ -428,8 +428,8 @@ function renderShop() {
   let sec = `<section><h2 class="section-title">Da comprare <small>${need.length ? `${outN} finiti · ${lowN} in esaurimento` : ""}</small></h2>`;
   if (!need.length) {
     sec += items.length
-      ? `<div class="empty"><span class="kao" lang="ko">ㅎㅎ</span><strong>Non manca niente</strong>${state.filter === "all" ? "Quando qualcosa finisce, scrivilo qui sopra o toccalo tra le cose in casa." : "Niente da comprare in questa categoria."}</div>`
-      : `<div class="empty"><span class="kao" lang="ko">ㅠㅠ</span><strong>La lista è vuota</strong>Scrivi qui sopra la prima cosa finita, per esempio “carta igienica” o “latte”.${list === "casa" ? " Chi ha il codice di casa la vedrà subito." : ""}</div>`;
+      ? `<div class="empty"><strong>Non manca niente</strong>${state.filter === "all" ? "Quando qualcosa finisce, scrivilo qui sopra o toccalo tra le cose in casa." : "Niente da comprare in questa categoria."}</div>`
+      : `<div class="empty"><strong>La lista è vuota</strong>Scrivi qui sopra la prima cosa finita, per esempio “carta igienica” o “latte”.${list === "casa" ? " Chi ha il codice di casa la vedrà subito." : ""}</div>`;
   } else {
     for (const c of CATS) {
       const g = need.filter(i => (catById[i.cat] ? i.cat : "altro") === c.id);
@@ -555,7 +555,7 @@ function renderPantry() {
     return;
   }
   if (!items.length) {
-    parts.push(`<div class="empty"><span class="kao" lang="ko">텅 빈</span><strong>La dispensa è vuota</strong>Tocca “Aggiungi” o scansiona il codice a barre di un prodotto. Dividi le cose tra frigo, freezer, credenza, pulizia e bagno, così sapete sempre cosa c’è in casa.</div>`);
+    parts.push(`<div class="empty"><strong>La dispensa è vuota</strong>Tocca “Aggiungi” o scansiona il codice a barre di un prodotto. Dividi le cose tra frigo, freezer, credenza, pulizia e bagno, così sapete sempre cosa c’è in casa.</div>`);
     $("pantry-list").innerHTML = parts.join("");
     return;
   }
@@ -725,7 +725,7 @@ $("settings-btn").addEventListener("click", () => { state.view = state.view === 
 function renderSetup() {
   $("view-setup").innerHTML = `
     <div class="panel">
-      <h2>Benvenuto <span lang="ko" style="font-family:var(--font-ko)">환영해요</span></h2>
+      <h2>Benvenuto</h2>
       <p>Segnate qui cosa finisce in casa e cosa c’è in dispensa. Una persona crea la lista, l’altra entra con il codice.</p>
       <div class="field"><label for="setup-name">Come ti chiami?</label>
         <input id="setup-name" type="text" maxlength="30" placeholder="es. Giulia" value="${esc(state.me)}" autocomplete="given-name"></div>

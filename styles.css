@@ -1,6 +1,6 @@
 /* Direzione: cartoleria coreana. Pastelli opachi su carta hanji, angoli morbidi,
    niente ombre lucide né gradienti. Titoli tondi (Fredoka), testo Nunito,
-   un piccolo tocco in hangul (Gowun Dodum). Barra delle sezioni in basso come un'app. */
+   Barra delle sezioni in basso come un'app. */
 :root {
   --bg: #f3f1ee;
   --paper: #fbfaf8;
@@ -18,7 +18,6 @@
   --focus: #6a5a92;
   --font-display: "Fredoka", "Avenir Next Rounded", "Nunito", system-ui, sans-serif;
   --font-body: "Nunito", system-ui, -apple-system, "Segoe UI", sans-serif;
-  --font-ko: "Gowun Dodum", "Apple SD Gothic Neo", "Noto Sans KR", sans-serif;
   --r-lg: 22px; --r-md: 16px; --r-sm: 12px;
   --tabbar-h: 64px;
   color-scheme: light;
@@ -67,7 +66,7 @@ svg { display: block; }
 .brand { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
 .brand h1 { font-family: var(--font-display); font-weight: 600; font-size: 1.65rem; line-height: 1.05; margin: 0; letter-spacing: -0.01em; }
 .brand h1 span { color: var(--rose-ink); }
-.tagline { font-family: var(--font-ko); font-size: 12.5px; color: var(--muted); margin: 3px 0 0; letter-spacing: .04em; }
+.tagline { font-size: 12.5px; color: var(--muted); margin: 3px 0 0; letter-spacing: .04em; }
 .actions { display: flex; align-items: center; gap: 4px; }
 .sync { width: 10px; height: 10px; border-radius: 50%; background: var(--stone); margin-right: 6px; flex: none; }
 .sync[data-state="live"] { background: var(--mint); box-shadow: 0 0 0 3px color-mix(in srgb, var(--mint) 40%, transparent); }
@@ -151,7 +150,6 @@ select.pillsel { -webkit-appearance: none; appearance: none; padding-right: 28px
 .notice.error { background: var(--rose); color: var(--rose-ink); }
 .empty { background: var(--paper); border-radius: var(--r-lg); padding: 26px 20px; text-align: center; color: var(--muted); }
 .empty strong { display: block; color: var(--ink); font-family: var(--font-display); font-weight: 600; font-size: 1.15rem; margin-bottom: 4px; }
-.empty .kao { display: block; font-family: var(--font-ko); font-size: 1.6rem; color: var(--lilac-ink); margin-bottom: 4px; }
 
 .section-title { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; font-family: var(--font-display); font-weight: 600; font-size: 1.2rem; margin: 6px 4px 8px; }
 .section-title small { font-family: var(--font-body); font-size: 13px; color: var(--muted); font-weight: 600; }
