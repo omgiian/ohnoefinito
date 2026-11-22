@@ -26,10 +26,12 @@ export function validBarcode(code) {
   return /^\d{8}$|^\d{12,14}$/.test(code || "");
 }
 
+// Creiamo gli elementi direttamente nel documento (non da un <template>):
+// in Safari un <video> nato in un template può restare nero anche se riceve lo stream.
 function el(html) {
-  const t = document.createElement("template");
-  t.innerHTML = html.trim();
-  return t.content.firstElementChild;
+  const d = document.createElement("div");
+  d.innerHTML = html.trim();
+  return d.firstElementChild;
 }
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 
@@ -175,9 +177,9 @@ export function scanBarcode() {
       <div class="scanner" role="dialog" aria-modal="true" aria-label="Scansiona codice a barre">
         <header><h2>Inquadra il codice a barre</h2><button class="btn soft" type="button" data-close>Chiudi</button></header>
         <div class="stage">
-          <video playsinline webkit-playsinline muted autoplay></video>
+          <canvas class="preview" aria-hidden="true"></canvas>
           <div class="frame"></div>
-          <div class="msg" data-msg>Avvio la fotocamera…</div>
+          <div class="msg"><span data-msg>Avvio la fotocamera…</span><small class="diag" data-diag></small></div>
         </div>
         <footer>
           <div class="row">
@@ -191,13 +193,55 @@ export function scanBarcode() {
         </footer>
       </div>`);
     document.body.appendChild(root);
-    const video = root.querySelector("video");
+    const video = document.createElement("video");
+    video.muted = true; video.defaultMuted = true; video.playsInline = true; video.autoplay = true;
+    video.setAttribute("playsinline", ""); video.setAttribute("webkit-playsinline", ""); video.setAttribute("muted", "");
+    root.querySelector(".stage").prepend(video);
+    const preview = root.querySelector(".preview");
+    const diag = root.querySelector("[data-diag]");
     const msg = root.querySelector("[data-msg]");
     const digits = root.querySelector("[data-digits]");
     const fileIn = root.querySelector("[data-file]");
     const retryBtn = root.querySelector("[data-retry]");
     const canvas = document.createElement("canvas");
     let stream = null, closed = false, runId = 0;
+
+    // anteprima disegnata da noi su un canvas: si vede anche se Safari non mostra il <video>
+    let previewRaf = 0;
+    function drawPreview() {
+      if (closed) return;
+      const vw = video.videoWidth, vh = video.videoHeight;
+      if (stream && vw && vh) {
+        const dpr = Math.min(window.devicePixelRatio || 1, 2);
+        const cw = Math.round(preview.clientWidth * dpr), ch = Math.round(preview.clientHeight * dpr);
+        if (cw && ch) {
+          if (preview.width !== cw || preview.height !== ch) { preview.width = cw; preview.height = ch; }
+          const scale = Math.max(cw / vw, ch / vh);
+          const sw = cw / scale, sh = ch / scale;
+          try { preview.getContext("2d").drawImage(video, (vw - sw) / 2, (vh - sh) / 2, sw, sh, 0, 0, cw, ch); } catch (_) {}
+        }
+      }
+      previewRaf = requestAnimationFrame(drawPreview);
+    }
+    previewRaf = requestAnimationFrame(drawPreview);
+
+    function brightness(c) {
+      try {
+        const d = c.getContext("2d", { willReadFrequently: true }).getImageData(0, 0, c.width, c.height).data;
+        let sum = 0, n = 0;
+        for (let i = 0; i < d.length; i += 4 * 37) { sum += d[i] + d[i + 1] + d[i + 2]; n++; }
+        return n ? Math.round(sum / n / 3) : -1;
+      } catch (_) { return -1; }
+    }
+    function showDiag(extra) {
+      const t = stream && stream.getVideoTracks()[0];
+      const parts = [];
+      if (video.videoWidth) parts.push(`${video.videoWidth}×${video.videoHeight}`);
+      parts.push(`video ${video.readyState}${video.paused ? " in pausa" : ""}`);
+      if (t) parts.push(`camera ${t.readyState}${t.muted ? " muta" : ""}`);
+      if (extra != null) parts.push(extra);
+      diag.textContent = parts.join(" · ");
+    }
 
     function stopCamera() {
       runId++;
@@ -208,6 +252,7 @@ export function scanBarcode() {
     function close(code) {
       if (closed) return;
       closed = true;
+      cancelAnimationFrame(previewRaf);
       stopCamera();
       root.remove();
       resolve(code || null);
@@ -269,17 +314,28 @@ export function scanBarcode() {
           return;
         }
         stream = s;
+        video.addEventListener("pause", () => { if (stream) video.play().catch(() => {}); });
         await ready;
         msg.textContent = "Tieni il codice dentro il riquadro";
+        let darkSince = 0, tick = 0;
         while (!closed && myRun === runId) {
           const vw = video.videoWidth, vh = video.videoHeight;
+          if (video.paused) video.play().catch(() => {});
           if (vw && vh) {
             // la fascia centrale, dove sta il riquadro
             const band = Math.round(vh * 0.5);
             drawTo(canvas, video, vw, vh, { crop: [0, Math.round((vh - band) / 2), vw, band], maxW: 960 });
             const code = await decodeCanvas(canvas);
             if (code) return done(code);
-          }
+            if (tick++ % 5 === 0) {
+              const light = brightness(canvas);
+              showDiag(`luce ${light}`);
+              if (light >= 0 && light < 6) {
+                darkSince ||= Date.now();
+                if (Date.now() - darkSince > 3000) msg.textContent = "La fotocamera manda solo immagini nere. Usa “Scatta una foto al codice” e mandami una foto di questa schermata.";
+              } else if (darkSince) { darkSince = 0; msg.textContent = "Tieni il codice dentro il riquadro"; }
+            }
+          } else if (tick++ % 5 === 0) showDiag("nessuna immagine");
           await sleep(120);
         }
       } catch (e) {

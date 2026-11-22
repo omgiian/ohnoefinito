@@ -246,6 +246,9 @@ select.pillsel { -webkit-appearance: none; appearance: none; padding-right: 28px
 .scanner header h2 { margin: 0; font-family: var(--font-display); font-weight: 600; font-size: 1.2rem; }
 .scanner .stage { position: relative; overflow: hidden; }
 .scanner video { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+.scanner .preview { position: absolute; top: 0; left: 0; width: 100%; height: 100%; display: block; }
+.scanner .diag { display: block; font-size: 11px; font-weight: 600; opacity: .7; margin-top: 2px; }
+.scanner .diag:empty { display: none; }
 .scanner .frame { position: absolute; left: 50%; top: 50%; width: min(78vw, 360px); height: min(40vw, 180px); transform: translate(-50%, -50%); border-radius: 18px; border: 3px solid #b7d6c4; }
 .scanner .frame::after { content: ""; position: absolute; left: 8%; right: 8%; top: 50%; height: 2px; background: #f0cfcf; animation: scan 1.6s ease-in-out infinite alternate; }
 @keyframes scan { from { transform: translateY(-60px); } to { transform: translateY(60px); } }

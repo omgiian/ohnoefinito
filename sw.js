@@ -1,6 +1,6 @@
 // Tiene in cache la pagina e la libreria Firebase, così l'app si apre anche senza rete.
 // I dati della lista li gestisce Firestore con la sua cache locale.
-const CACHE = "onf-v5";
+const CACHE = "onf-v6";
 const SHELL = ["./", "./index.html", "./styles.css", "./app.js", "./scanner.js", "./avatars.js", "./manifest.webmanifest", "./apple-touch-icon.png", "./icon-192.png", "./icon-512.png"];
 
 self.addEventListener("install", e => {
@@ -19,7 +19,8 @@ self.addEventListener("fetch", e => {
   const staticLib = url.hostname === "www.gstatic.com" || url.hostname === "fonts.googleapis.com" || url.hostname === "fonts.gstatic.com";
   if (sameOrigin) {
     // Prima la rete (così gli aggiornamenti arrivano subito), poi la cache.
-    e.respondWith(fetch(req).then(res => {
+    // "no-cache": chiede sempre al server se il file è cambiato (GitHub Pages altrimenti lo tiene 10 minuti)
+    e.respondWith(fetch(req, { cache: "no-cache" }).then(res => {
       if (res.ok) { const copy = res.clone(); caches.open(CACHE).then(c => c.put(req, copy)); }
       return res;
     }).catch(() => caches.match(req, { ignoreSearch: true }).then(r => r || caches.match("./index.html"))));
