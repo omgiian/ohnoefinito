@@ -334,8 +334,23 @@ async function testPush() {
     const j = sub.toJSON();
     const out = await postNotify([{ endpoint: j.endpoint, p256dh: j.keys.p256dh, auth: j.keys.auth }],
       "Funziona!", "Così ti avviso quando manca qualcosa in casa.");
-    showToast(out.sent ? "Notifica di prova inviata" : "Il servizio non è riuscito a inviarla");
-  } catch (e) { console.error(e); showToast("Non riesco a raggiungere il servizio delle notifiche"); }
+    if (out.sent) { lastPushInfo = ""; showToast("Notifica di prova inviata"); }
+    else { lastPushInfo = pushFailureText(out); showToast(lastPushInfo); }
+  } catch (e) { console.error(e); lastPushInfo = `Servizio non raggiungibile (${e.message || e})`; showToast("Non riesco a raggiungere il servizio delle notifiche"); }
+  renderPushPanel();
+}
+let lastPushInfo = "";
+/** Spiega perché il servizio non ha consegnato la notifica (risposta del servizio push). */
+function pushFailureText(out) {
+  const r = (out.results || [])[0] || {};
+  let host = "";
+  try { host = new URL(r.endpoint).hostname; } catch (_) {}
+  const svc = /apple/.test(host) ? "Apple" : /google|fcm/.test(host) ? "Google" : /mozilla/.test(host) ? "Mozilla" : host || "il servizio push";
+  if (r.status === "invalid") return "Non inviata: iscrizione non valida. Disattiva e riattiva le notifiche.";
+  if (r.status === "gone") return "Non inviata: iscrizione scaduta. Disattiva e riattiva le notifiche.";
+  let why = "";
+  try { why = JSON.parse(r.reason || "{}").reason || ""; } catch (_) { why = (r.reason || "").slice(0, 60); }
+  return `Non inviata: ${svc} ha risposto ${r.code ?? "?"}${why ? ` (${why})` : ""}`;
 }
 
 // avvisi per gli altri: raccolti per 4 secondi, così più aggiunte diventano una notifica sola
@@ -383,6 +398,7 @@ async function renderPushPanel() {
   else html += `<p><b>Attive su questo telefono.</b> Ti avviso quando qualcuno aggiunge qualcosa alla lista “Casa”.</p>
       <div class="row"><button class="btn grow" type="button" id="push-test">Manda una prova</button>
       <button class="btn soft grow" type="button" id="push-off">Disattiva</button></div><p style="font-size:13px">${who}</p>`;
+  if (lastPushInfo) html += `<p class="push-diag">Ultimo tentativo · ${esc(lastPushInfo)}</p>`;
   el.innerHTML = html;
   el.querySelector("#push-on")?.addEventListener("click", enablePush);
   el.querySelector("#push-test")?.addEventListener("click", testPush);

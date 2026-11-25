@@ -60,6 +60,8 @@ export default {
         return { endpoint: s && s.endpoint, status: "error", code: 0 };
       }
     }));
+    // registro (senza chiavi): servizio, esito e motivo, per capire i problemi di consegna
+    console.log(JSON.stringify({ notify: results.map(r => ({ host: hostOf(r.endpoint), status: r.status, code: r.code, reason: r.reason })) }));
     return json(200, {
       sent: results.filter(r => r.status === "sent").length,
       gone: results.filter(r => r.status === "gone" || r.status === "invalid").map(r => r.endpoint),
@@ -67,6 +69,8 @@ export default {
     });
   },
 };
+
+function hostOf(u) { try { return new URL(u).hostname; } catch { return ""; } }
 
 function validSubscription(s) {
   if (!s || typeof s.endpoint !== "string" || !s.keys) return false;
