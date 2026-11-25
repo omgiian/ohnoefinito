@@ -92,7 +92,8 @@ export async function sendPush(sub, text, vapidKey, subject, topic) {
     "Urgency": "normal",
     "Authorization": `vapid t=${jwt}, k=${vapidKey.publicB64}`,
   };
-  if (topic && /^[A-Za-z0-9_-]{1,32}$/.test(topic)) headers["Topic"] = topic;
+  // niente intestazione "Topic": Apple la rifiuta (400 BadWebPushTopic). Le notifiche della spesa
+  // si sostituiscono comunque sul telefono grazie al "tag" che il service worker mette a ciascuna.
   return fetch(sub.endpoint, { method: "POST", headers, body });
 }
 

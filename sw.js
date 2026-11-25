@@ -1,6 +1,6 @@
 // Tiene in cache la pagina e la libreria Firebase, così l'app si apre anche senza rete.
 // I dati della lista li gestisce Firestore con la sua cache locale.
-const CACHE = "onf-v13";
+const CACHE = "onf-v14";
 const SHELL = ["./", "./index.html", "./styles.css", "./app.js", "./scanner.js", "./avatars.js", "./receipt.js", "./icons.js", "./manifest.webmanifest", "./apple-touch-icon.png", "./icon-192.png", "./icon-512.png"];
 
 self.addEventListener("install", e => {

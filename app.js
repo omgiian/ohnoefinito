@@ -396,7 +396,7 @@ async function renderPushPanel() {
   else if (st === "off") html += `<p>Ricevi un avviso quando qualcuno aggiunge qualcosa alla lista “Casa”.</p>
       <button class="btn" type="button" id="push-on">Attiva le notifiche</button><p style="font-size:13px">${who}</p>`;
   else html += `<p><b>Attive su questo telefono.</b> Ti avviso quando qualcuno aggiunge qualcosa alla lista “Casa”.</p>
-      <div class="row"><button class="btn grow" type="button" id="push-test">Manda una prova</button>
+      <div class="row"><button class="btn grow" type="button" id="push-test">Prova</button>
       <button class="btn soft grow" type="button" id="push-off">Disattiva</button></div><p style="font-size:13px">${who}</p>`;
   if (lastPushInfo) html += `<p class="push-diag">Ultimo tentativo · ${esc(lastPushInfo)}</p>`;
   el.innerHTML = html;
