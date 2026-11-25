@@ -114,6 +114,19 @@ service cloud.firestore {
         && request.resource.data.keys().hasOnly(['store', 'date', 'time', 'docNumber', 'total', 'products', 'byUid', 'at']);
     }
 
+    // Iscrizioni alle notifiche push: ognuno salva solo la propria;
+    // chiunque in casa può toglierne una scaduta
+    match /households/{code}/push/{uid} {
+      allow read, delete: if member(code);
+      allow create, update: if member(code) && request.auth.uid == uid
+        && request.resource.data.keys().hasOnly(['endpoint', 'p256dh', 'auth', 'name', 'at'])
+        && request.resource.data.endpoint is string && request.resource.data.endpoint.size() <= 800
+        && request.resource.data.endpoint.matches('^https://.*')
+        && request.resource.data.p256dh is string && request.resource.data.p256dh.size() <= 120
+        && request.resource.data.auth is string && request.resource.data.auth.size() <= 40
+        && shortText(request.resource.data, 'name', 30);
+    }
+
     // Lista "Solo mio": ogni telefono vede e modifica solo la propria
     match /users/{uid}/items/{itemId} {
       allow read, delete: if signedIn() && request.auth.uid == uid;

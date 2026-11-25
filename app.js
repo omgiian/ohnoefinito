@@ -16,6 +16,10 @@ const firebaseConfig = {
   appId: "1:251015979077:web:5c6c4b902cddf6b4a1032c",
 };
 
+// notifiche push: il servizio su Cloudflare (cartella push-worker/) e la sua chiave pubblica VAPID
+const PUSH_URL = "https://ohnoefinito-push.ohnoefinito.workers.dev/notify";
+const VAPID_PUBLIC = "BEVB5lq1aQkONraQ9bCqC0dFnOCHMsiHW_uZRv1BBRLLFYill2BSYEk_4tbSoZcUbpCBKVxx7XcSQC7Iz2OAr8g";
+
 const fbApp = initializeApp(firebaseConfig);
 const auth = getAuth(fbApp);
 let fs;
@@ -103,7 +107,7 @@ const state = {
   pending: false,
   uid: null, code: store.get("onf-code"), me: store.get("onf-name") || "",
   problems: { shop: null, pantry: null }, justCreated: false,
-  look: loadLook(), members: [], house: null,
+  look: loadLook(), members: [], house: null, pushSubs: [],
 };
 function loadLook() {
   try {
@@ -115,6 +119,17 @@ function loadLook() {
   return l;
 }
 let unsubs = [], pendingDel = null, toastTimer = null, undoFn = null, refreshing = false, serverWaiters = [];
+
+// aperta toccando una notifica: va alla lista "Casa"
+if (location.hash === "#spesa") {
+  state.tab = "spesa"; state.list = "casa";
+  history.replaceState(null, "", location.pathname);
+}
+navigator.serviceWorker?.addEventListener("message", e => {
+  if (e.data && e.data.type === "open" && state.code && state.me) {
+    state.view = "app"; state.tab = "spesa"; state.list = "casa"; render(); scrollTo(0, 0);
+  }
+});
 
 // codice di casa arrivato da un link d'invito (#casa=XXXX-XXXX-XXXX-XXXX)
 const fromLink = parseCode(location.hash);
@@ -216,6 +231,7 @@ function startLists() {
   subscribe("casa"); subscribe("mio"); subscribe("pantry");
   subscribeHouse();
   syncMe();
+  syncPush();
 }
 
 // ---------- casa e componenti ----------
@@ -229,7 +245,150 @@ function subscribeHouse() {
     state.house = snap.exists() ? snap.data() : null;
     updateHouseName();
   }, err => console.warn("house", err)));
+  unsubs.push(onSnapshot(collection(fs, "households", state.code, "push"), snap => {
+    state.pushSubs = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    if (state.view === "settings") renderPushPanel();
+  }, err => console.warn("push", err)));
 }
+// ======================================================================
+// NOTIFICHE PUSH
+// ======================================================================
+const pushSupported = () => "serviceWorker" in navigator && "PushManager" in window && "Notification" in window;
+const isIOS = /iPhone|iPad|iPod/.test(navigator.userAgent) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+const isStandalone = () => matchMedia("(display-mode: standalone)").matches || navigator.standalone === true;
+function b64urlToBytes(str) {
+  const s = str.replace(/-/g, "+").replace(/_/g, "/");
+  const bin = atob(s + "===".slice((s.length + 3) % 4));
+  return Uint8Array.from(bin, c => c.charCodeAt(0));
+}
+async function currentPushSub() {
+  if (!pushSupported()) return null;
+  const reg = await navigator.serviceWorker.getRegistration();
+  return reg ? reg.pushManager.getSubscription() : null;
+}
+function saveSubscription(sub) {
+  const j = sub.toJSON();
+  return setDoc(doc(fs, "households", state.code, "push", state.uid), {
+    endpoint: j.endpoint, p256dh: j.keys.p256dh, auth: j.keys.auth, name: state.me, at: Date.now(),
+  });
+}
+/** All'avvio: se le notifiche sono attive, aggiorna l'iscrizione salvata (può cambiare nel tempo). */
+async function syncPush() {
+  try {
+    if (!pushSupported() || Notification.permission !== "granted" || !state.code || !state.uid) return;
+    const sub = await currentPushSub();
+    if (sub) await saveSubscription(sub);
+  } catch (e) { console.warn("push sync", e); }
+}
+async function pushStatus() {
+  if (!pushSupported()) return isIOS && !isStandalone() ? "need-home" : "unsupported";
+  if (Notification.permission === "denied") return "denied";
+  const sub = Notification.permission === "granted" ? await currentPushSub() : null;
+  return sub ? "on" : "off";
+}
+async function enablePush() {
+  let perm;
+  try { perm = await Notification.requestPermission(); } catch (_) { perm = Notification.permission; }
+  if (perm !== "granted") { renderPushPanel(); return; }
+  try {
+    const reg = await navigator.serviceWorker.ready;
+    let sub = await reg.pushManager.getSubscription();
+    if (!sub) sub = await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: b64urlToBytes(VAPID_PUBLIC) });
+    await saveSubscription(sub);
+    showToast("Notifiche attive su questo telefono");
+  } catch (e) {
+    console.error(e);
+    showToast(e && e.code === "permission-denied"
+      ? "Non riesco a salvare: aggiorna le regole di Firestore (vedi README)"
+      : "Non riesco ad attivare le notifiche. Riprova tra poco.");
+  }
+  renderPushPanel();
+}
+async function disablePush() {
+  try { const sub = await currentPushSub(); if (sub) await sub.unsubscribe(); } catch (_) {}
+  deleteDoc(doc(fs, "households", state.code, "push", state.uid)).catch(() => {});
+  showToast("Notifiche disattivate su questo telefono");
+  renderPushPanel();
+}
+async function postNotify(subs, title, body) {
+  const res = await fetch(PUSH_URL, {
+    method: "POST", headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      subscriptions: subs.map(s => ({ endpoint: s.endpoint, keys: { p256dh: s.p256dh, auth: s.auth } })),
+      title, body, url: "./#spesa", tag: "spesa",
+    }),
+  });
+  if (!res.ok) throw new Error("push " + res.status);
+  const out = await res.json();
+  // iscrizioni scadute (telefono cambiato, app reinstallata): le togliamo
+  for (const gone of out.gone || []) {
+    const s = state.pushSubs.find(x => x.endpoint === gone);
+    if (s) deleteDoc(doc(fs, "households", state.code, "push", s.id)).catch(() => {});
+  }
+  return out;
+}
+async function testPush() {
+  try {
+    const sub = await currentPushSub();
+    if (!sub) { showToast("Prima attiva le notifiche"); return; }
+    const j = sub.toJSON();
+    const out = await postNotify([{ endpoint: j.endpoint, p256dh: j.keys.p256dh, auth: j.keys.auth }],
+      "Funziona!", "Così ti avviso quando manca qualcosa in casa.");
+    showToast(out.sent ? "Notifica di prova inviata" : "Il servizio non è riuscito a inviarla");
+  } catch (e) { console.error(e); showToast("Non riesco a raggiungere il servizio delle notifiche"); }
+}
+
+// avvisi per gli altri: raccolti per 4 secondi, così più aggiunte diventano una notifica sola
+let notifyQueue = [], notifyTimer = null, notifySeq = 0;
+function queueNotify(name, status) {
+  const key = ++notifySeq;
+  notifyQueue.push({ key, name, status });
+  clearTimeout(notifyTimer);
+  notifyTimer = setTimeout(flushNotify, 4000);
+  return key;
+}
+function dropNotify(key) { notifyQueue = notifyQueue.filter(n => n.key !== key); }
+async function flushNotify() {
+  const items = notifyQueue.splice(0);
+  if (!items.length) return;
+  const subs = state.pushSubs.filter(s => s.id !== state.uid && s.endpoint && s.p256dh && s.auth);
+  if (!subs.length) return;
+  const who = state.me || "Qualcuno";
+  const names = [...new Set(items.map(i => i.name))];
+  const title = names.length === 1 ? `${who} ha aggiunto alla spesa` : `${who} ha aggiunto ${names.length} cose alla spesa`;
+  const body = names.length === 1
+    ? `${names[0]} · ${items[items.length - 1].status === "low" ? "sta finendo" : "finito"}`
+    : names.slice(0, 6).join(", ") + (names.length > 6 ? ` e altre ${names.length - 6}` : "");
+  try { await postNotify(subs, title, body); }
+  catch (e) {
+    console.warn("notify", e);
+    // senza rete: riprova quando torna la connessione
+    notifyQueue.unshift(...items);
+    addEventListener("online", () => { clearTimeout(notifyTimer); notifyTimer = setTimeout(flushNotify, 1500); }, { once: true });
+  }
+}
+
+async function renderPushPanel() {
+  const el = document.getElementById("push-panel");
+  if (!el) return;
+  const st = await pushStatus();
+  const others = state.pushSubs.filter(s => s.id !== state.uid).map(s => memberById(s.id)?.name || s.name || "qualcuno");
+  const who = others.length ? `Le ricevono anche: ${others.map(esc).join(", ")}.` : "Anche l’altra persona deve attivarle sul suo telefono.";
+  let html = `<h3>Notifiche</h3>`;
+  if (st === "need-home") html += `<p>Su iPhone le notifiche funzionano solo se apri l’app dall’icona sulla schermata Home.</p>`;
+  else if (st === "unsupported") html += `<p>Questo browser non può ricevere notifiche.</p>`;
+  else if (st === "denied") html += `<p>Le notifiche sono bloccate. Su iPhone: Impostazioni › Notifiche › È finito! › Consenti notifiche. Poi riapri l’app.</p>`;
+  else if (st === "off") html += `<p>Ricevi un avviso quando qualcuno aggiunge qualcosa alla lista “Casa”.</p>
+      <button class="btn" type="button" id="push-on">Attiva le notifiche</button><p style="font-size:13px">${who}</p>`;
+  else html += `<p><b>Attive su questo telefono.</b> Ti avviso quando qualcuno aggiunge qualcosa alla lista “Casa”.</p>
+      <div class="row"><button class="btn grow" type="button" id="push-test">Manda una prova</button>
+      <button class="btn soft grow" type="button" id="push-off">Disattiva</button></div><p style="font-size:13px">${who}</p>`;
+  el.innerHTML = html;
+  el.querySelector("#push-on")?.addEventListener("click", enablePush);
+  el.querySelector("#push-test")?.addEventListener("click", testPush);
+  el.querySelector("#push-off")?.addEventListener("click", disablePush);
+}
+
 /** Salva nome e avatar di questo telefono tra i componenti della casa. */
 function syncMe() {
   if (!state.uid || !state.code || !state.me) return;
@@ -438,13 +597,15 @@ function addToShopping(list, { name, cat, note, status, pantryId }, silent) {
     if (pantryId) patch.pantryId = pantryId;
     write(list, existing.id, patch).catch(() => {});
     if (!silent) showToast(existing.status === "ok" ? `“${existing.name}” è di nuovo in lista` : `“${existing.name}” era già in lista: aggiornato`);
-    return () => write(list, existing.id, prev).catch(() => {});
+    const nk = list === "casa" && existing.status === "ok" ? queueNotify(existing.name, status) : null;
+    return () => { if (nk) dropNotify(nk); write(list, existing.id, prev).catch(() => {}); };
   }
   const id = doc(colFor(list)).id;
   const data = { name, cat, note: note || "", status, ...whoFields() };
   if (pantryId) data.pantryId = pantryId;
   write(list, id, data, true).catch(() => {});
-  return () => deleteDoc(doc(colFor(list), id)).catch(() => {});
+  const nk = list === "casa" ? queueNotify(name, status) : null;
+  return () => { if (nk) dropNotify(nk); deleteDoc(doc(colFor(list), id)).catch(() => {}); };
 }
 
 function markBought(list, item, rowEl) {
@@ -475,7 +636,10 @@ $("shop-list").addEventListener("click", e => {
   const act = b.dataset.act;
   if (act === "buy") markBought(list, item, b.closest(".item"));
   else if (act === "urg") write(list, item.id, { status: item.status === "out" ? "low" : "out" }).catch(() => {});
-  else if (act === "again") write(list, item.id, { status: "out", ...whoFields() }).catch(() => {});
+  else if (act === "again") {
+    write(list, item.id, { status: "out", ...whoFields() }).catch(() => {});
+    if (list === "casa") queueNotify(item.name, "out");
+  }
   else if (act === "del") askDelete(item.id);
   else if (act === "del-yes") { pendingDel = null; removeItem(list, item); }
 });
@@ -1275,6 +1439,8 @@ function renderSettings() {
       <div class="field"><span class="lbl">Avatar</span><div class="av-picker">${pickerHtml()}</div></div>
     </div>
 
+    <div class="panel" data-c="cibo" id="push-panel"><h3>Notifiche</h3></div>
+
     <div class="panel" data-c="pulizia">
       <div class="field"><label for="house-name">Nome della casa</label>
         <input id="house-name" type="text" maxlength="40" placeholder="La nostra casa" value="${esc(state.house?.name || "")}"></div>
@@ -1300,6 +1466,7 @@ function renderSettings() {
     <button class="btn danger" id="leave" type="button">Esci da questa casa</button>
     <p id="leave-confirm" class="notice error" hidden>Uscendo, su questo telefono non vedrai più lista e dispensa di casa finché non reinserisci il codice. I dati restano salvati per gli altri. <button class="confirm-del" id="leave-yes" type="button">Esci</button></p>`;
   renderMembers();
+  renderPushPanel();
   bindPicker($("profile-panel"));
   $("copy-link").addEventListener("click", () => {
     const link = inviteLink();
@@ -1338,6 +1505,7 @@ function renderSettings() {
   $("leave").addEventListener("click", () => { $("leave-confirm").hidden = false; });
   $("leave-yes").addEventListener("click", () => {
     deleteDoc(doc(fs, "households", state.code, "members", state.uid)).catch(() => {});
+    deleteDoc(doc(fs, "households", state.code, "push", state.uid)).catch(() => {});
     store.set("onf-joined-" + state.code, null);
     unsubs.forEach(u => u()); unsubs = [];
     state.code = null; store.set("onf-code", null);
